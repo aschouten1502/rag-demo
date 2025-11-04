@@ -46,11 +46,14 @@ export const WelcomeScreen = ({ selectedLanguage }: WelcomeScreenProps) => {
         ))}
       </div>
 
-      {/* Powered by Levtor */}
-      <div className="mt-8 mb-4">
+      {/* Powered by Levtor + Version */}
+      <div className="mt-8 mb-4 flex flex-col items-center gap-1">
         <p className="text-xs text-gray-400 flex items-center gap-1.5">
           <span>Powered by</span>
           <span className="font-semibold">Levtor</span>
+        </p>
+        <p className="text-[10px] text-gray-300">
+          v1.0.0
         </p>
       </div>
     </div>
