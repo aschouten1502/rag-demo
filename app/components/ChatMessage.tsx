@@ -28,8 +28,8 @@ export const ChatMessage = ({ role, content, citations, logId }: ChatMessageProp
   };
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} animate-fade-in`}>
-      <div className={`flex gap-3 max-w-[85%] sm:max-w-[75%] ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"} animate-fade-in w-full`}>
+      <div className={`flex gap-3 max-w-[85%] sm:max-w-[75%] w-full ${isUser ? "flex-row-reverse" : "flex-row"}`}>
         {/* Avatar */}
         <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg
                         ${isUser ? "bg-gradient-to-br from-primary to-primary-dark" : "bg-white"}`}>
@@ -45,7 +45,7 @@ export const ChatMessage = ({ role, content, citations, logId }: ChatMessageProp
         </div>
 
         {/* Message Bubble */}
-        <div>
+        <div className="flex-1 min-w-0">
           <div
             className={`px-4 py-3 rounded-2xl shadow-lg text-sm sm:text-base
                        ${
@@ -54,7 +54,7 @@ export const ChatMessage = ({ role, content, citations, logId }: ChatMessageProp
                            : "bg-white text-gray-800 border border-gray-100"
                        }`}
           >
-            <p className="whitespace-pre-wrap break-words">{content}</p>
+            <p className="whitespace-pre-wrap break-words overflow-hidden">{content}</p>
           </div>
 
           {/* Citations - Adapted for Pinecone format */}
