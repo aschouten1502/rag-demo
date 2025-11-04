@@ -68,7 +68,7 @@ export function initializeOpenAI(apiKey: string): OpenAI {
  *
  * Dit combineert:
  * 1. System prompt (met context en instructies)
- * 2. Conversatie geschiedenis (eerdere vragen en antwoorden)
+ * 2. Conversatie geschiedenis (eerdere vragen en antwoorden) - BEPERKT TOT LAATSTE 10 BERICHTEN
  * 3. Huidige vraag van de gebruiker
  *
  * @param systemPrompt - De system prompt met context en instructies
@@ -87,10 +87,19 @@ export function prepareMessages(
     content: msg.content
   }));
 
+  // OPTIMALISATIE: Beperk history tot laatste 10 berichten (5 Q&A pairs)
+  // Dit maakt de bot sneller en goedkoper zonder context te verliezen
+  const MAX_HISTORY_MESSAGES = 10;
+  const limitedHistory = cleanedHistory.slice(-MAX_HISTORY_MESSAGES);
+
+  if (cleanedHistory.length > MAX_HISTORY_MESSAGES) {
+    console.log(`📊 [OpenAI] History limited: ${cleanedHistory.length} → ${limitedHistory.length} messages (saved ~${(cleanedHistory.length - limitedHistory.length) * 150} tokens)`);
+  }
+
   // Bouw de messages array
   return [
     { role: 'system', content: systemPrompt },
-    ...cleanedHistory,
+    ...limitedHistory,
     { role: 'user', content: currentMessage }
   ];
 }
@@ -100,7 +109,7 @@ export function prepareMessages(
 // ========================================
 
 /**
- * Vraagt OpenAI GPT-4o om een antwoord te genereren
+ * Vraagt OpenAI GPT-4o om een antwoord te genereren (NON-STREAMING versie)
  *
  * Deze functie:
  * 1. Stuurt alle messages naar GPT-4o
@@ -167,4 +176,108 @@ export async function generateAnswer(
     outputCost,
     totalCost
   };
+}
+
+/**
+ * Genereert een streaming antwoord van OpenAI GPT-4o
+ *
+ * Dit is de STREAMING versie die tokens real-time stuurt naar de frontend.
+ * Voordeel: Gebruiker ziet antwoord woord-voor-woord verschijnen (veel snellere UX).
+ *
+ * @param openaiClient - Geïnitialiseerde OpenAI client
+ * @param messages - Alle messages (system, history, current)
+ * @param language - De geselecteerde taal (voor logging)
+ * @returns ReadableStream voor streaming response
+ */
+export async function generateStreamingAnswer(
+  openaiClient: OpenAI,
+  messages: ConversationMessage[],
+  language: string
+): Promise<ReadableStream> {
+  console.log('\n💭 [OpenAI] ========== CALLING OPENAI (STREAMING) ==========');
+  console.log('🤖 [OpenAI] Model: GPT-4o');
+  console.log('🌊 [OpenAI] Streaming: ENABLED');
+  console.log('📨 [OpenAI] Conversation history messages:', messages.length - 2);
+  console.log('🌐 [OpenAI] User selected language:', language);
+
+  // Call OpenAI API met streaming
+  const stream = await openaiClient.chat.completions.create({
+    model: 'gpt-4o',
+    messages: messages as any,
+    temperature: 0.7,
+    stream: true,  // ENABLE STREAMING!
+    stream_options: {
+      include_usage: true  // Krijg usage tokens in laatste chunk
+    }
+  });
+
+  // Create een ReadableStream voor de response
+  const encoder = new TextEncoder();
+  let fullAnswer = '';
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || '';
+
+          if (content) {
+            fullAnswer += content;
+
+            // Stuur chunk naar frontend in Server-Sent Events formaat
+            const data = JSON.stringify({
+              type: 'content',
+              content: content
+            });
+            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+          }
+
+          // Check voor usage info (komt in laatste chunk)
+          if (chunk.usage) {
+            inputTokens = chunk.usage.prompt_tokens || 0;
+            outputTokens = chunk.usage.completion_tokens || 0;
+          }
+        }
+
+        // Stream is klaar - stuur final metrics
+        const totalTokens = inputTokens + outputTokens;
+        const inputCost = (inputTokens / 1000000) * 2.50;
+        const outputCost = (outputTokens / 1000000) * 10;
+        const totalCost = inputCost + outputCost;
+
+        console.log('\n✅ [OpenAI] ========== STREAMING COMPLETED ==========');
+        console.log('💬 [OpenAI] Full answer length:', fullAnswer.length, 'characters');
+        console.log('🔢 [OpenAI] Input tokens:', inputTokens);
+        console.log('🔢 [OpenAI] Output tokens:', outputTokens);
+        console.log('💵 [OpenAI] Total cost: $' + totalCost.toFixed(6));
+
+        // Stuur done signal met metrics
+        const doneData = JSON.stringify({
+          type: 'done',
+          usage: {
+            inputTokens,
+            outputTokens,
+            totalTokens,
+            inputCost,
+            outputCost,
+            totalCost
+          },
+          fullAnswer
+        });
+        controller.enqueue(encoder.encode(`data: ${doneData}\n\n`));
+        controller.close();
+
+      } catch (error) {
+        console.error('❌ [OpenAI] Streaming error:', error);
+        const errorData = JSON.stringify({
+          type: 'error',
+          message: error instanceof Error ? error.message : 'Unknown streaming error'
+        });
+        controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+        controller.close();
+      }
+    }
+  });
 }

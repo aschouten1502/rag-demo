@@ -52,7 +52,7 @@ export async function logChatRequest(data: {
     console.log('💾 [Supabase] Logging request to database...');
 
     const { data: insertedData, error } = await supabase
-      .from('Geostick_Logs_Data_QABOTHR')
+      .from('geostick_logs_data_qabothr')
       .insert([
         {
           session_id: data.session_id || null,
@@ -90,6 +90,57 @@ export async function logChatRequest(data: {
   } catch (error: any) {
     // Catch and log any errors, but don't break the chat functionality
     console.error('❌ [Supabase] Unexpected error while logging:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update a chat request log in Supabase
+ * Used to update placeholder logs after streaming completes
+ */
+export async function updateChatRequest(logId: string, data: {
+  answer: string;
+  response_time_seconds: number;
+  response_time_ms: number;
+  openai_input_tokens: number;
+  openai_output_tokens: number;
+  openai_total_tokens: number;
+  openai_cost: number;
+  total_cost: number;
+}) {
+  // Skip if Supabase is not configured
+  if (!supabase) {
+    console.log('⏩ [Supabase] Update skipped - Supabase not configured');
+    return { success: false, error: 'Supabase not configured' };
+  }
+
+  try {
+    console.log('🔄 [Supabase] Updating log entry:', logId);
+
+    const { data: updatedData, error } = await supabase
+      .from('geostick_logs_data_qabothr')
+      .update({
+        answer: data.answer,
+        response_time_seconds: data.response_time_seconds,
+        response_time_ms: data.response_time_ms,
+        openai_input_tokens: data.openai_input_tokens,
+        openai_output_tokens: data.openai_output_tokens,
+        openai_total_tokens: data.openai_total_tokens,
+        openai_cost: data.openai_cost,
+        total_cost: data.total_cost,
+      })
+      .eq('id', logId)
+      .select();
+
+    if (error) {
+      console.error('❌ [Supabase] Failed to update log:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ [Supabase] Log updated successfully');
+    return { success: true, data: updatedData };
+  } catch (error: any) {
+    console.error('❌ [Supabase] Unexpected error while updating log:', error);
     return { success: false, error: error.message };
   }
 }

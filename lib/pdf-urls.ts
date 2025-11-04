@@ -4,7 +4,7 @@
  */
 
 const SUPABASE_STORAGE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1', '') || '';
-const BUCKET_NAME = 'Geostick HR documenten';
+const BUCKET_NAME = 'Geostick-HR-documenten';
 
 /**
  * Get the public URL for a PDF document

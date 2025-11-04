@@ -107,9 +107,16 @@ export default function Home() {
     console.log('📤 [Frontend] User message:', content);
     setIsLoading(true);  // Toon loading indicator
 
+    // Variables voor streaming
+    let streamedContent = '';
+    let citations: any[] = [];
+    let logId: string | null = null;
+    let usage: any = undefined;
+    let hasReceivedFirstContent = false;  // Track of we al content hebben ontvangen
+
     try {
-      // Stuur request naar API
-      console.log('🌐 [Frontend] Sending fetch request to /api/chat');
+      // Stuur request naar API (STREAMING)
+      console.log('🌊 [Frontend] Starting streaming request to /api/chat');
       console.log('📊 [Frontend] Payload:', {
         message: content,
         historyLength: messages.length,
@@ -122,40 +129,28 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: content,
-          conversationHistory: messages,  // Stuur volledige geschiedenis mee voor context
-          language: selectedLanguage,      // Geselecteerde taal (maar AI detecteert automatisch)
-          sessionId: sessionId             // Session ID voor tracking
+          conversationHistory: messages,
+          language: selectedLanguage,
+          sessionId: sessionId
         })
       });
 
       console.log('📥 [Frontend] Response status:', response.status);
-      const data = await response.json();
-      console.log('📦 [Frontend] Response data:', data);
 
-      // ========================================
-      // ERROR HANDLING
-      // ========================================
+      // Check voor errors (niet-streaming)
       if (!response.ok) {
-        // Log error voor debugging
-        console.error('\n❌ [Frontend] ========== API ERROR RESPONSE ==========');
-        console.error('🔴 [Frontend] Status Code:', response.status);
-        console.error('📋 [Frontend] Error Category:', data.error || 'Unknown');
-        console.error('📍 [Frontend] Error Source:', data.source || 'Unknown');
-        console.error('💬 [Frontend] Error Message:', data.message || data.details || 'No message');
-        console.error('🔍 [Frontend] Full Response:', JSON.stringify(data, null, 2));
-        console.error('========================================\n');
+        const data = await response.json();
+        console.error('❌ [Frontend] Error:', data.error || 'Unknown');
 
-        // Als het een user-friendly error is (bijv. content filter), toon als normaal bericht
         if (data.userFriendly && data.message) {
           const errorMessage: Message = {
             role: 'assistant',
             content: data.message
           };
           setMessages((prev) => [...prev, errorMessage]);
-          return; // Stop hier, geen throw
+          return;
         }
 
-        // Voor server errors met user messages, toon die
         if (data.message) {
           const errorMessage: Message = {
             role: 'assistant',
@@ -165,52 +160,121 @@ export default function Home() {
           return;
         }
 
-        // Anders: throw error voor catch block
         throw new Error(data.details || data.error || 'Failed to send message');
       }
 
       // ========================================
-      // SUCCESS - Voeg antwoord toe
+      // STREAMING RESPONSE HANDLING
       // ========================================
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: data.message,
-        citations: data.citations,  // Bronnen (bestand + pagina)
-        logId: data.logId || null,  // Log ID voor feedback tracking
-        usage: data.usage           // Token usage voor debugging
-      };
+      console.log('🌊 [Frontend] Reading streaming response...');
 
-      console.log('✅ [Frontend] Adding assistant message to state');
-      console.log('🔑 [Frontend] Log ID:', data.logId || 'NO_LOG_ID');
-      setMessages((prev) => [...prev, assistantMessage]);
+      // Voeg lege assistant message toe
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: '',
+          citations: [],
+          logId: null,
+          usage: undefined
+        }
+      ]);
 
-    } catch (error: any) {
-      // ========================================
-      // CLIENT-SIDE ERROR
-      // ========================================
-      // Dit gebeurt bij network errors of andere client-side issues
-      console.error('\n❌ [Frontend] ========== ERROR CAUGHT ==========');
-      console.error('🔴 [Frontend] Error Type:', error?.name || 'Unknown');
-      console.error('📋 [Frontend] Error Message:', error?.message || 'No message');
-      console.error('⏱️  [Frontend] Timestamp:', new Date().toISOString());
+      // Read stream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      if (error?.stack) {
-        console.error('🔍 [Frontend] Stack Trace (first 3 lines):');
-        const stackLines = error.stack.split('\n').slice(0, 3);
-        stackLines.forEach((line: string) => console.error('   ' + line));
+      if (!reader) {
+        throw new Error('Response body reader not available');
       }
 
-      console.error('========================================\n');
+      while (true) {
+        const { done, value } = await reader.read();
 
-      // Toon user-friendly error message
+        if (done) {
+          console.log('✅ [Frontend] Stream completed');
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const eventData = JSON.parse(line.slice(6));
+
+              if (eventData.type === 'metadata') {
+                citations = eventData.citations || [];
+                logId = eventData.logId || null;  // ← HAAL LOGID UIT METADATA!
+                console.log('📎 [Frontend] Received citations:', citations.length);
+                console.log('🔑 [Frontend] Received logId:', logId);
+              } else if (eventData.type === 'content') {
+                streamedContent += eventData.content;
+
+                // Stop loading indicator bij eerste content chunk
+                if (!hasReceivedFirstContent && eventData.content) {
+                  hasReceivedFirstContent = true;
+                  setIsLoading(false);
+                }
+
+                // Update real-time
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {
+                    role: 'assistant',
+                    content: streamedContent,
+                    citations: citations,
+                    logId: logId,
+                    usage: usage
+                  };
+                  return updated;
+                });
+              } else if (eventData.type === 'done') {
+                usage = eventData.usage;
+                console.log('✅ [Frontend] Stream done');
+
+                // Final update
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {
+                    role: 'assistant',
+                    content: eventData.fullAnswer || streamedContent,
+                    citations: citations,
+                    logId: logId,
+                    usage: usage
+                  };
+                  return updated;
+                });
+              } else if (eventData.type === 'error') {
+                throw new Error(eventData.message || 'Streaming error');
+              }
+            } catch (parseError) {
+              console.error('⚠️ [Frontend] Failed to parse event:', line);
+            }
+          }
+        }
+      }
+
+    } catch (error: any) {
+      console.error('\n❌ [Frontend] ERROR:', error?.message || 'Unknown');
+
+      // Verwijder lege message
+      setMessages((prev) => {
+        if (prev.length > 0 && prev[prev.length - 1].role === 'assistant' && prev[prev.length - 1].content === '') {
+          return prev.slice(0, -1);
+        }
+        return prev;
+      });
+
+      // Toon error
       const errorMessage: Message = {
         role: 'assistant',
         content: `Sorry, er is een fout opgetreden: ${error?.message || 'Onbekende fout. Probeer het opnieuw.'}`
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
-      // Zet loading altijd uit, of het nu lukt of faalt
-      console.log('🏁 [Frontend] Request completed, setting loading to false');
+      console.log('🏁 [Frontend] Request completed');
       setIsLoading(false);
     }
   };

@@ -19,7 +19,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Import alle modules
 import { initializePinecone, retrieveContext } from '@/lib/pinecone';
-import { initializeOpenAI, prepareMessages, generateAnswer } from '@/lib/openai';
+import { initializeOpenAI, prepareMessages, generateStreamingAnswer } from '@/lib/openai';
 import { generateSystemPrompt } from '@/lib/prompts';
 import {
   logSuccessfulRequest,
@@ -30,6 +30,7 @@ import {
   categorizeError,
   type RequestSummary
 } from '@/lib/logging';
+import { updateChatRequest } from '@/lib/supabase/supabase-client';
 
 // ========================================
 // MAIN API HANDLER
@@ -107,83 +108,164 @@ export async function POST(request: NextRequest) {
     const systemPrompt = generateSystemPrompt(contextText, language);
 
     // ========================================
-    // STEP 5: Initialiseer OpenAI en genereer antwoord
+    // STEP 5: Initialiseer OpenAI en start streaming
     // ========================================
     const openaiClient = initializeOpenAI(openaiApiKey);
     const messages = prepareMessages(systemPrompt, conversationHistory, message);
-    const openaiResponse = await generateAnswer(openaiClient, messages, language);
 
-    // ========================================
-    // STEP 6: Bereken totale kosten en timing
-    // ========================================
-    const requestEndTime = Date.now();
-    const responseTimeMs = requestEndTime - requestStartTime;
-    const responseTimeSeconds = (responseTimeMs / 1000).toFixed(2);
-    const combinedTotalCost = pineconeCost + openaiResponse.totalCost;
+    console.log('\n🌊 [API] Starting streaming response...');
 
-    console.log('\n💰 [API] ========== COMBINED COST SUMMARY ==========');
-    console.log('💵 [API] Pinecone context: $' + pineconeCost.toFixed(6));
-    console.log('💵 [API] OpenAI (input + output): $' + openaiResponse.totalCost.toFixed(6));
-    console.log('💵 [API] Total per request: $' + combinedTotalCost.toFixed(6));
-    console.log('ℹ️  [API] Note: Excludes Pinecone hourly rate ($0.05/hour)');
+    // BELANGRIJKE WIJZIGING: Maak een placeholder log VOOR streaming
+    // Dit geeft ons een logId voor de feedback duimpjes
+    // We updaten de log later met de echte data
+    let logId: string | null = null;
+    try {
+      const placeholderSummary: RequestSummary = {
+        session_id: sessionId || 'NO_SESSION_ID',
+        timestamp: new Date(requestStartTime).toISOString(),
+        question: message,
+        answer: '[Streaming in progress...]', // Placeholder
+        response_time_seconds: 0,
+        response_time_ms: 0,
+        pinecone_tokens: pineconeTokens,
+        pinecone_cost: parseFloat(pineconeCost.toFixed(6)),
+        openai_input_tokens: 0, // Wordt later geupdate
+        openai_output_tokens: 0,
+        openai_total_tokens: 0,
+        openai_cost: 0,
+        total_cost: parseFloat(pineconeCost.toFixed(6)),
+        snippets_used: citations.length,
+        citations_count: citations.length,
+        conversation_history_length: conversationHistory?.length || 0,
+        language: language,
+        citations: citations
+      };
+      logId = await logSuccessfulRequest(placeholderSummary);
+      console.log('✅ [API] Placeholder log created with ID:', logId);
+    } catch (err) {
+      console.error('⚠️ [API] Failed to create placeholder log:', err);
+    }
 
-    console.log('\n⏱️  [API] ========== TIMING ==========');
-    console.log('⏱️  [API] Request end time:', new Date(requestEndTime).toISOString());
-    console.log('⏱️  [API] Total response time:', responseTimeSeconds, 'seconds');
-    console.log('⏱️  [API] Total response time:', responseTimeMs, 'ms');
+    // Genereer streaming response
+    const stream = await generateStreamingAnswer(openaiClient, messages, language);
 
-    // ========================================
-    // STEP 7: Log succesvolle request
-    // ========================================
-    const requestSummary: RequestSummary = {
-      session_id: sessionId || 'NO_SESSION_ID',
-      timestamp: new Date(requestStartTime).toISOString(),
-      question: message,
-      answer: openaiResponse.answer,
-      response_time_seconds: parseFloat(responseTimeSeconds),
-      response_time_ms: responseTimeMs,
-      pinecone_tokens: pineconeTokens,
-      pinecone_cost: parseFloat(pineconeCost.toFixed(6)),
-      openai_input_tokens: openaiResponse.inputTokens,
-      openai_output_tokens: openaiResponse.outputTokens,
-      openai_total_tokens: openaiResponse.totalTokens,
-      openai_cost: parseFloat(openaiResponse.totalCost.toFixed(6)),
-      total_cost: parseFloat(combinedTotalCost.toFixed(6)),
-      snippets_used: citations.length,
-      citations_count: citations.length,
-      conversation_history_length: conversationHistory?.length || 0,
-      language: language,
-      citations: citations
-    };
+    // Voeg metadata toe aan de stream (citations, pinecone cost, session, logId!)
+    const encoder = new TextEncoder();
+    const transformedStream = new ReadableStream({
+      async start(controller) {
+        // Track de finale data voor Supabase update
+        let fullAnswer = '';
+        let finalUsage: any = null;
 
-    const logId = await logSuccessfulRequest(requestSummary);
+        try {
+          // Stuur eerst de metadata (citations, pinecone info, EN logId!)
+          const metadataEvent = JSON.stringify({
+            type: 'metadata',
+            citations: citations,
+            pineconeTokens: pineconeTokens,
+            pineconeCost: parseFloat(pineconeCost.toFixed(6)),
+            sessionId: sessionId || 'NO_SESSION_ID',
+            requestStartTime: requestStartTime,
+            logId: logId  // ← NU HEBBEN WE EEN LOGID!
+          });
+          controller.enqueue(encoder.encode(`data: ${metadataEvent}\n\n`));
 
-    // ========================================
-    // STEP 8: Return response naar frontend
-    // ========================================
-    return NextResponse.json({
-      message: openaiResponse.answer,
-      citations: citations,
-      logId: logId, // Voor feedback tracking
-      usage: {
-        prompt_tokens: openaiResponse.inputTokens,
-        completion_tokens: openaiResponse.outputTokens,
-        total_tokens: openaiResponse.totalTokens
-      },
-      costBreakdown: {
-        pinecone: {
-          tokens: pineconeTokens,
-          cost: parseFloat(pineconeCost.toFixed(6))
-        },
-        openai: {
-          input_tokens: openaiResponse.inputTokens,
-          output_tokens: openaiResponse.outputTokens,
-          total_tokens: openaiResponse.totalTokens,
-          cost: parseFloat(openaiResponse.totalCost.toFixed(6))
-        },
-        total_cost: parseFloat(combinedTotalCost.toFixed(6)),
-        response_time_seconds: parseFloat(responseTimeSeconds)
+          // Pipe de OpenAI stream door EN verzamel data voor update
+          const reader = stream.getReader();
+          const decoder = new TextDecoder();
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            // Decode de chunk om de data te extraheren
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const eventData = JSON.parse(line.slice(6));
+
+                  // Verzamel content voor fullAnswer
+                  if (eventData.type === 'content') {
+                    fullAnswer += eventData.content;
+                  }
+
+                  // Verzamel usage voor Supabase update
+                  if (eventData.type === 'done') {
+                    finalUsage = eventData.usage;
+                    fullAnswer = eventData.fullAnswer || fullAnswer;
+                  }
+                } catch (e) {
+                  // Parsing error, skip
+                }
+              }
+            }
+
+            // Forward de chunk naar de client
+            controller.enqueue(value);
+          }
+
+          // Bereken timing
+          const requestEndTime = Date.now();
+          const responseTimeMs = requestEndTime - requestStartTime;
+          const responseTimeSeconds = parseFloat((responseTimeMs / 1000).toFixed(2));
+
+          console.log('\n⏱️  [API] ========== TIMING ==========');
+          console.log('⏱️  [API] Total response time:', responseTimeSeconds, 'seconds');
+
+          // Update de Supabase log met de echte data (non-blocking)
+          if (logId && finalUsage && fullAnswer) {
+            const totalCost = parseFloat(pineconeCost.toFixed(6)) + (finalUsage.totalCost || 0);
+
+            console.log('🔄 [API] Updating Supabase log with final data...');
+            updateChatRequest(logId, {
+              answer: fullAnswer,
+              response_time_seconds: responseTimeSeconds,
+              response_time_ms: responseTimeMs,
+              openai_input_tokens: finalUsage.inputTokens || 0,
+              openai_output_tokens: finalUsage.outputTokens || 0,
+              openai_total_tokens: finalUsage.totalTokens || 0,
+              openai_cost: finalUsage.totalCost || 0,
+              total_cost: totalCost
+            }).then(result => {
+              if (result.success) {
+                console.log('✅ [API] Supabase log updated successfully');
+              } else {
+                console.error('⚠️ [API] Failed to update Supabase log:', result.error);
+              }
+            }).catch(err => {
+              console.error('⚠️ [API] Error updating Supabase log:', err);
+            });
+          } else {
+            console.warn('⚠️ [API] Missing data for Supabase update:', {
+              hasLogId: !!logId,
+              hasUsage: !!finalUsage,
+              hasAnswer: !!fullAnswer
+            });
+          }
+
+          controller.close();
+        } catch (error) {
+          console.error('❌ [API] Streaming error:', error);
+          const errorEvent = JSON.stringify({
+            type: 'error',
+            message: error instanceof Error ? error.message : 'Streaming failed'
+          });
+          controller.enqueue(encoder.encode(`data: ${errorEvent}\n\n`));
+          controller.close();
+        }
       }
+    });
+
+    // Return streaming response
+    return new Response(transformedStream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
     });
 
   } catch (error: any) {

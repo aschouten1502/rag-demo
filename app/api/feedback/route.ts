@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     // Update de feedback in de database
     const { data, error } = await supabase
-      .from('Geostick_Logs_Data_QABOTHR')
+      .from('geostick_logs_data_qabothr')
       .update({
         feedback: feedback,
         feedback_comment: comment || null,
