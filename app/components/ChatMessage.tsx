@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import FeedbackButtons from '@/components/FeedbackButtons';
-import PdfModal from '@/components/PdfModal';
 import { getPdfUrl, isPdfAvailable } from '@/lib/pdf-urls';
 
 interface ChatMessageProps {
@@ -14,16 +12,12 @@ interface ChatMessageProps {
 
 export const ChatMessage = ({ role, content, citations, logId }: ChatMessageProps) => {
   const isUser = role === "user";
-  const [pdfModalOpen, setPdfModalOpen] = useState(false);
-  const [selectedPdf, setSelectedPdf] = useState<{ url: string; filename: string } | null>(null);
 
   const handlePdfClick = (filename: string) => {
     if (isPdfAvailable(filename)) {
-      setSelectedPdf({
-        url: getPdfUrl(filename),
-        filename: filename
-      });
-      setPdfModalOpen(true);
+      const pdfUrl = getPdfUrl(filename);
+      // Open PDF directly in new tab
+      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -128,16 +122,6 @@ export const ChatMessage = ({ role, content, citations, logId }: ChatMessageProp
           )}
         </div>
       </div>
-
-      {/* PDF Modal */}
-      {selectedPdf && (
-        <PdfModal
-          isOpen={pdfModalOpen}
-          onClose={() => setPdfModalOpen(false)}
-          pdfUrl={selectedPdf.url}
-          filename={selectedPdf.filename}
-        />
-      )}
     </div>
   );
 };
