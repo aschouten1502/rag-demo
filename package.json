@@ -1,6 +1,6 @@
 {
   "name": "geostick-hr-bot",
-  "version": "1.0.0",
+  "version": "1.0.7",
   "description": "Geostick HR Q&A Bot - Production Ready (Verkoop Versie)",
   "private": true,
   "scripts": {

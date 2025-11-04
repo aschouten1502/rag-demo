@@ -296,7 +296,7 @@ export default function Home() {
       </div>
 
       {/* Chat Area - SCROLLABLE met padding voor header en input */}
-      <div className="w-full pt-[70px] pb-[100px]">
+      <div className="w-full min-h-screen pt-[90px] pb-[120px] z-10">
         <div className="w-full px-4 sm:px-6 py-6">
           {/* Toon welkomstscherm als er nog geen messages zijn */}
           {messages.length === 0 ? (
