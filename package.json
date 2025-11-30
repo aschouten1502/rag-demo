@@ -1,7 +1,7 @@
 {
-  "name": "geostick-hr-bot",
-  "version": "1.2.1",
-  "description": "Geostick HR Q&A Bot - Production Ready (Verkoop Versie)",
+  "name": "hr-assistant-ai",
+  "version": "2.0.0",
+  "description": "HR Assistant AI - Multi-tenant white-label HR chatbot powered by RAG (Retrieval-Augmented Generation)",
   "private": true,
   "scripts": {
     "dev": "next dev",

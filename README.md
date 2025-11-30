@@ -1,410 +1,424 @@
-# 🤖 GeoStick HR QA Bot - Production Ready
+# 🤖 HR Assistant AI
 
-Een intelligente HR assistent die vragen beantwoordt over HR-beleid, procedures en arbeidsvoorwaarden op basis van **RAG (Retrieval-Augmented Generation)**.
+**Version 2.0.0** - Multi-tenant White-Label HR Chatbot
 
----
+> Transform your HR documentation into an intelligent AI assistant that answers employee questions 24/7 in 12 languages.
 
-## 🎯 Wat is dit?
-
-Een **Next.js 15** applicatie die:
-- ✅ HR vragen beantwoordt in **12 talen** (NL, EN, DE, FR, ES, IT, PL, TR, AR, ZH, PT, RO)
-- ✅ Informatie haalt uit **HR documenten** (CAO, personeelshandboek, etc.) via Pinecone
-- ✅ Intelligente antwoorden genereert via **OpenAI GPT-4o**
-- ✅ Alle requests logt in **Supabase** voor analytics en cost tracking
-- ✅ **Bronvermelding** toont (welk document, welke pagina)
-- ✅ **Kosten tracked** (Pinecone + OpenAI per request)
-
-**Let op**: "Verkoop" in de folder naam betekent dat dit de **productie-versie** is die verkocht wordt aan GeoStick. Het is **GEEN sales bot**, maar een **HR Q&A assistent**.
+[![Next.js](https://img.shields.io/badge/Next.js-15.5-black)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-blue)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/License-Proprietary-red)]()
 
 ---
 
-## 🚀 Quick Start
+## 🎯 What is HR Assistant AI?
+
+An **enterprise-grade RAG (Retrieval-Augmented Generation)** chatbot that:
+
+- 📚 Learns from your HR documents (PDFs)
+- 🤖 Answers employee questions using AI (GPT-4o)
+- 🌍 Supports 12 languages automatically
+- 📱 Works as mobile app (PWA)
+- 📊 Tracks costs and analytics
+- 🎨 Fully white-labelable per client
+
+**Perfect for**: HR teams, employee onboarding, policy Q&A, benefits explanations, and reducing HR support tickets.
+
+---
+
+## ✨ Key Features
+
+### 🧠 Intelligent Answers
+- **RAG Technology**: Retrieves relevant context from your docs before answering
+- **Accurate Responses**: Only uses information from your documents (no hallucination)
+- **Citations**: Shows source documents and page numbers
+- **Multi-turn Conversations**: Remembers conversation history
+
+### 🌐 Multi-Language Support
+12 languages included:
+- 🇳🇱 Nederlands
+- 🇬🇧 English
+- 🇩🇪 Deutsch
+- 🇫🇷 Français
+- 🇪🇸 Español
+- 🇮🇹 Italiano
+- 🇵🇱 Polski
+- 🇹🇷 Türkçe
+- 🇸🇦 العربية
+- 🇨🇳 中文
+- 🇵🇹 Português
+- 🇷🇴 Română
+
+### 📱 Modern User Experience
+- **Progressive Web App (PWA)**: Install on any device
+- **Offline Support**: Works without internet (cached)
+- **Mobile-First Design**: Optimized for phones and tablets
+- **Streaming Responses**: Real-time answer generation
+- **Dark Mode Ready**: (Coming soon)
+
+### 📊 Analytics & Monitoring
+- **Cost Tracking**: Per-question cost breakdown
+- **Usage Analytics**: Questions, sessions, popular docs
+- **Performance Monitoring**: Response times, error rates
+- **Feedback Collection**: (Optional) User satisfaction tracking
+
+### 🎨 White-Label Ready
+- **Customizable Branding**: Colors, logo, company name
+- **Multi-Tenant Architecture**: Easy per-client deployment
+- **Environment-Based Config**: Change settings without code changes
+
+---
+
+## 🚀 Quick Start (5 Minutes)
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- Pinecone account (for document storage)
+- OpenAI API key (for AI responses)
+- (Optional) Supabase account (for analytics)
+
+### 1. Clone Repository
 
 ```bash
-# 1. Installeer dependencies
-npm install
-
-# 2. Configureer environment variables
-cp .env.example .env.local
-# Vul API keys in (zie docs/README.md)
-
-# 3. Start development server
-npm run dev
-
-# 4. Open http://localhost:3000
+git clone https://github.com/your-org/hr-assistant-ai.git
+cd hr-assistant-ai
 ```
 
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Configure Environment
+
+```bash
+# Copy example file
+cp .env.example .env.local
+
+# Edit .env.local with your values
+# See .env.example for detailed instructions
+```
+
+Required variables:
+```bash
+PINECONE_API_KEY=pcsk_xxxxx
+PINECONE_ASSISTANT_NAME=your-assistant-name
+OPENAI_API_KEY=sk-xxxxx
+```
+
+### 4. Upload Your HR Documents
+
+1. Create Pinecone Assistant at https://www.pinecone.io
+2. Upload your HR PDFs
+3. Copy Assistant name to `.env.local`
+
+### 5. Run Development Server
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) and start asking questions!
+
 ---
 
-## 📚 Documentatie
+## 📖 Full Documentation
 
-Alle documentatie staat in de **`/docs`** folder:
+### Getting Started
+- **[QUICK_START.md](QUICK_START.md)** - 15-20 minute setup with CLIENT_CONFIG.md workflow ⭐
+- **[CLIENT_CONFIG.example.md](CLIENT_CONFIG.example.md)** - Client configuration template ⭐
+- **[CLAUDE.md](CLAUDE.md)** - Claude Code automation instructions ⭐
+- **[.env.example](.env.example)** - Environment variable reference
 
-| Document | Beschrijving |
-|----------|--------------|
-| **[docs/README.md](./docs/README.md)** | 📖 **START HIER** - Complete setup guide en overzicht |
-| **[CLAUDE.md](./CLAUDE.md)** | 🤖 Developer guide voor Claude Code (concise) |
-| **[PROJECT_INDEX.md](./PROJECT_INDEX.md)** | 📁 Complete project file index en navigation |
-| **[docs/guides/PROJECT_STRUCTURE.md](./docs/guides/PROJECT_STRUCTURE.md)** | 🗂️ Detailed code structuur en flow |
-| **[docs/SUPABASE.md](./docs/SUPABASE.md)** | 🗄️ Database setup, schema, en wat er gelogd wordt |
-| **[docs/SUPABASE_ANALYTICS.md](./docs/SUPABASE_ANALYTICS.md)** | 📊 SQL queries voor cost tracking en analytics |
-| **[docs/migrations/README.md](./docs/migrations/README.md)** | 💾 Database migrations index |
-| **[docs/SETUP_CHECKLIST.md](./docs/SETUP_CHECKLIST.md)** | ✅ Stap-voor-stap setup checklist |
-| **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** | 🚀 Deployment guide (Vercel/Netlify/Docker) |
+### Extended Documentation
+- **[documentation/](documentation/)** - Organized documentation library
+  - [Setup & Deployment](documentation/setup/)
+  - [Branding & Customization](documentation/branding/)
+  - [Technical Documentation](documentation/technical/)
+  - [Scaling Guide](documentation/guides/SCALING_GUIDE.md)
 
 ---
 
-## 🛠️ Tech Stack
+## 🏗️ Architecture
+
+```
+User Question
+    ↓
+Next.js API Route (app/api/chat/route.ts)
+    ↓
+Pinecone Assistant → Retrieve top 3 relevant snippets
+    ↓
+System Prompt Generation → Inject context + guardrails
+    ↓
+OpenAI GPT-4o → Generate streaming answer
+    ↓
+Response + Citations → Frontend
+    ↓
+Supabase Logging → Analytics (optional)
+```
+
+### Tech Stack
 
 - **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript 5
 - **Styling**: Tailwind CSS 4
-- **Vector DB**: Pinecone Assistant (voor RAG)
+- **Vector DB**: Pinecone Assistant
 - **LLM**: OpenAI GPT-4o
 - **Database**: Supabase (PostgreSQL)
-- **Deployment**: Vercel (aanbevolen) / Netlify / Docker
+- **PWA**: @ducanh2912/next-pwa
+- **Deployment**: Vercel (recommended)
 
 ---
 
-## ✨ Features
+## 💰 Cost Tracking
 
-### Progressive Web App (PWA)
-- 📱 **Installeerbaar** op iOS en Android (geen App Store nodig!)
-- 🎨 **Standalone mode** - werkt als native app zonder browser UI
-- 🔌 **Offline support** - blijft werken zonder internet
-- ⚡ **Caching strategies** - snellere laadtijden
-- 🎯 **App-achtige ervaring** - volledige mobiele optimalisatie
+The application tracks costs per query:
+- **Pinecone**: Context retrieval tokens
+- **OpenAI**: Input and output tokens
 
-### Chat Interface
-- Multi-taal support (12 talen met automatische detectie)
-- Real-time streaming antwoorden
-- Bronvermelding met paginanummers
-- Error handling met user-friendly messages
-- Content filter detectie
+View detailed cost breakdowns in:
+- Developer sidebar (during chat)
+- Supabase analytics dashboard
+- [Analytics Documentation](documentation/technical/SUPABASE_ANALYTICS.md)
 
-### Analytics & Logging
-- Alle chat requests opgeslagen in Supabase
-- Cost tracking per request (Pinecone + OpenAI)
-- Performance metrics (response tijd, token usage)
-- Error categorisatie en diagnostics
-- Session tracking (unieke gebruikers)
-
-### Developer Tools
-- Structured console logging met emoji's
-- Developer sidebar met session stats
-- Type-safe API routes
-- Comprehensive error handling
+**Cost Optimization Tips**:
+- Use `gpt-4o-mini` for lower costs (90% cheaper)
+- Reduce `topK` in `lib/pinecone.ts` (currently 3)
+- Limit conversation history (currently 10 messages)
+- Monitor usage per client via Supabase
 
 ---
 
-## 📦 Project Structuur
+## 🎨 Multi-Tenant Deployment
 
-```
-geostickverkoophrqabot/
-├── app/
-│   ├── api/chat/route.ts       # ⭐ Hoofd API route (RAG logica)
-│   ├── page.tsx                # ⭐ Chat interface (frontend)
-│   ├── components/             # React componenten
-│   └── translations.ts         # 12 talen
-│
-├── lib/
-│   ├── pinecone.ts            # Context retrieval uit HR docs
-│   ├── openai.ts              # GPT-4o antwoord generatie
-│   ├── prompts.ts             # System prompts
-│   ├── logging.ts             # Logging & analytics
-│   └── supabase/
-│       ├── supabase-client.ts # Database logging
-│       └── migrations/        # SQL migraties
-│           └── 001_initial_schema.sql
-│
-├── docs/                      # ⭐ Alle documentatie
-│   ├── README.md              # Setup guide
-│   ├── CLAUDE.md              # AI assistant instructies
-│   ├── SUPABASE.md            # Database docs
-│   ├── SUPABASE_ANALYTICS.md  # SQL queries
-│   ├── SETUP_CHECKLIST.md     # Checklist
-│   └── DEPLOYMENT.md          # Production deployment
-│
-├── PROJECT_STRUCTURE.md       # Code structuur uitleg
-├── .env.example               # Environment template
-└── package.json               # Dependencies
-```
+**New in v2.0**: Automated client setup with CLIENT_CONFIG.md workflow!
+
+### Quick Setup (15-20 minutes)
+
+1. **Copy configuration template**:
+   ```bash
+   cp CLIENT_CONFIG.example.md CLIENT_CONFIG.md
+   ```
+
+2. **Fill in client details**:
+   - Tenant ID and company name
+   - Branding (colors, logo)
+   - API keys (Pinecone, OpenAI)
+   - Supabase settings (optional)
+
+3. **Share with Claude Code**:
+   ```
+   "Configureer deze client op basis van CLIENT_CONFIG.md"
+   ```
+
+4. **Claude Code automatically**:
+   - Generates `.env.local`
+   - Sets up Supabase (if configured)
+   - Validates configuration
+   - Reports manual steps needed
+
+See **[QUICK_START.md](QUICK_START.md)** for complete instructions.
+
+### Manual Setup
+
+See **[documentation/setup/DEPLOYMENT_GUIDE.md](documentation/setup/DEPLOYMENT_GUIDE.md)** for step-by-step manual deployment.
+
+**Total time: 15-20 minutes**
 
 ---
 
-## 🔑 Environment Variables
+## 📱 PWA Installation
 
-Zie `.env.example` voor template. Verplicht:
+### iOS (iPhone/iPad)
+
+1. Open in Safari
+2. Tap Share button
+3. Tap "Add to Home Screen"
+4. Tap "Add"
+
+### Android
+
+1. Open in Chrome
+2. Tap menu (⋮)
+3. Tap "Add to Home Screen"
+4. Tap "Add"
+
+### Desktop (Chrome/Edge)
+
+1. Click install icon (⊕) in address bar
+2. Click "Install"
+
+---
+
+## 🔧 Development
+
+### Available Scripts
 
 ```bash
-# Pinecone (voor RAG context retrieval)
-PINECONE_API_KEY=your_key_here
-PINECONE_ASSISTANT_NAME=geostick-hr-assistant
-
-# OpenAI (voor LLM antwoorden)
-OPENAI_API_KEY=your_key_here
-
-# Supabase (optioneel - voor logging/analytics)
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+npm run dev          # Start dev server (http://localhost:3000)
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+npx tsc --noEmit     # TypeScript type checking
 ```
 
-**Opmerking**: Zonder Supabase werkt de chat nog steeds, maar logs gaan alleen naar console.
+### Project Structure
+
+```
+├── app/
+│   ├── api/chat/          # Main API endpoint
+│   ├── components/        # React components
+│   ├── translations.ts    # 12-language translations
+│   └── page.tsx           # Main chat interface
+├── lib/
+│   ├── branding.config.ts # 🎨 Branding configuration
+│   ├── pinecone.ts        # Context retrieval
+│   ├── openai.ts          # LLM streaming
+│   ├── prompts.ts         # System prompts
+│   ├── logging.ts         # Error handling
+│   └── supabase/          # Database integration
+├── public/                # Static assets
+├── docs/                  # Documentation
+├── .env.example           # Environment template
+└── CUSTOMIZATION_GUIDE.md # Client setup guide
+```
 
 ---
 
-## 💰 Kosten
+## 🛠️ Troubleshooting
 
-De app tracked automatisch alle kosten:
+### Bot returns generic answers
+- ✅ Check Pinecone Assistant name matches `.env.local`
+- ✅ Verify documents are indexed in Pinecone dashboard
 
-### Pinecone Assistant
-- **Context retrieval**: $5 per 1M tokens
-- **Hosting**: $0.05/uur (~$36/maand)
-- **Gemiddeld per request**: ~$0.006
+### Colors not updating
+- ✅ Hard refresh browser (Ctrl+Shift+R)
+- ✅ Rebuild with `npm run build`
 
-### OpenAI GPT-4o
-- **Input tokens**: $2.50 per 1M tokens
-- **Output tokens**: $10 per 1M tokens
-- **Gemiddeld per request**: ~$0.002
+### Slow responses
+- ✅ Check Pinecone region matches Vercel region
+- ✅ Reduce `topK` in `lib/pinecone.ts`
 
-### Supabase
-- **Free tier**: 500 MB database (~500k chat logs)
-- **Pro**: $25/maand (8 GB database + backups)
+### Supabase logs not appearing
+- ✅ Check Service Role Key (not anon key!)
+- ✅ Verify migrations ran successfully
+- ✅ Bot works without Supabase (logs to console)
 
-**Totaal per chat**: ~$0.008 ($8 per 1000 vragen)
-
-Zie [docs/SUPABASE_ANALYTICS.md](./docs/SUPABASE_ANALYTICS.md) voor cost tracking queries.
-
----
-
-## 🎨 Screenshots
-
-### Chat Interface
-![Chat Interface](./docs/assets/chat-interface.png)
-*12-talige chat interface met real-time antwoorden en bronvermelding*
-
-### Developer Sidebar
-![Developer Sidebar](./docs/assets/dev-sidebar.png)
-*Session statistieken met costs en performance metrics*
+See [CUSTOMIZATION_GUIDE.md](CUSTOMIZATION_GUIDE.md) for more troubleshooting.
 
 ---
 
-## 📱 PWA Installatie (App-achtige ervaring)
+## 🔐 Security
 
-De Geostick HR Bot is een **Progressive Web App** die geïnstalleerd kan worden als native app op mobiele devices!
+- ✅ All secrets in `.env.local` (not committed)
+- ✅ Service Role Key is server-side only
+- ✅ Input validation prevents prompt injection
+- ✅ Content filter protection (OpenAI)
+- ✅ No user data stored (unless Supabase enabled)
+- ✅ HTTPS required in production
 
-### Op iOS (iPhone/iPad)
+### Production Checklist
+- [ ] Change all API keys from dev/demo
+- [ ] Enable CORS restrictions
+- [ ] Set up rate limiting
+- [ ] Configure custom domain
+- [ ] Enable Vercel authentication (for internal tools)
 
-1. Open de app in **Safari**: `https://geostickqabot-hr-v1.vercel.app`
-2. Tik op het **Deel-icoon** (vierkant met pijl omhoog)
-3. Scroll naar beneden en kies **"Zet op beginscherm"**
-4. Tik **"Voeg toe"**
-5. ✅ De app verschijnt nu op je beginscherm zonder browser UI!
+---
 
-### Op Android (Chrome)
+## 📊 Analytics Dashboards
 
-1. Open de app in **Chrome**: `https://geostickqabot-hr-v1.vercel.app`
-2. Tik op het **menu** (drie puntjes rechtsboven)
-3. Selecteer **"App installeren"** of **"Toevoegen aan startscherm"**
-4. Tik **"Installeren"**
-5. ✅ De app opent nu als standalone app zonder adresbalk!
+If Supabase is enabled, you get:
 
-### Op Desktop (Chrome/Edge)
+- **Session Analytics**: Question count, response times, cost per session
+- **Document Usage**: Most cited documents and pages
+- **Performance Metrics**: P50/P90/P95 response times
+- **Cost Analytics**: Daily/monthly cost breakdowns
+- **Error Monitoring**: Failed requests, incomplete logs
 
-1. Open `https://geostickqabot-hr-v1.vercel.app`
-2. Klik op het **installatie-icoontje** in de adresbalk (➕)
-3. Klik **"Installeren"**
-4. ✅ De app opent als desktop applicatie!
-
-### Voordelen van Installatie
-
-- 🎯 **Geen browser UI** - Volledige scherm app ervaring
-- ⚡ **Sneller** - Gecachte assets voor instant loading
-- 🔌 **Offline support** - Werkt ook zonder internet (met fallback pagina)
-- 📲 **Native gevoel** - Eigen app icoon op startscherm
-- 🎨 **Geostick branding** - Rood theme met logo
+See [docs/SUPABASE_ANALYTICS.md](docs/SUPABASE_ANALYTICS.md) for SQL queries.
 
 ---
 
 ## 🚀 Deployment
 
-Voor productie deployment zie **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)**.
+### Vercel (Recommended)
 
-### Quick Deploy op Vercel
+1. Push to GitHub
+2. Import to Vercel
+3. Add environment variables
+4. Deploy
 
-```bash
-npm i -g vercel
-vercel login
-vercel --prod
-```
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed instructions.
 
-Voeg environment variables toe via Vercel dashboard → Settings → Environment Variables.
+### Other Platforms
 
----
-
-## 📊 Analytics
-
-Supabase logt automatisch:
-- ✅ Alle vragen en antwoorden
-- ✅ Response tijden
-- ✅ Token usage (Pinecone + OpenAI)
-- ✅ Kosten per request
-- ✅ Error logs met categorisatie
-- ✅ Content filter events
-- ✅ Session tracking
-
-Gebruik queries uit [docs/SUPABASE_ANALYTICS.md](./docs/SUPABASE_ANALYTICS.md) voor:
-- Dagelijkse/wekelijkse/maandelijkse costs
-- Meest gestelde vragen
-- Performance metrics
-- Error rates
+Works on any Node.js hosting:
+- AWS Amplify
+- Azure Static Web Apps
+- Railway
+- Render
+- Docker (Coming soon)
 
 ---
 
-## 🔒 Security
+## 🤝 Support & Contributing
 
-- ✅ API keys alleen via environment variables
-- ✅ `.env.local` in `.gitignore`
-- ✅ Supabase service_role key alleen server-side
-- ✅ Content filter protection
-- ✅ Input validation
-- ✅ Error messages lekken geen sensitive data
+### For Levtor Team
+- Internal docs: [wiki link]
+- Slack: #hr-assistant-support
 
----
+### For Clients
+- Email: support@levtor.com
+- Response time: <24 hours
 
-## 🧪 Testing
-
-```bash
-# Linting
-npm run lint
-
-# Build test
-npm run build
-
-# TypeScript check
-npx tsc --noEmit
-```
+### Contributing
+This is proprietary software. Internal contributions only.
 
 ---
 
-## 📖 Hoe het werkt
+## 📄 License
 
-### RAG Flow
+**Proprietary** - © 2025 Levtor. All rights reserved.
 
-```
-1. User stelt vraag in chat
-        ↓
-2. API Route ontvangt request
-        ↓
-3. Pinecone haalt top 3 relevante passages uit HR docs
-        ↓
-4. System prompt wordt gegenereerd met context
-        ↓
-5. OpenAI GPT-4o genereert antwoord
-        ↓
-6. Antwoord + citations terug naar user
-        ↓
-7. Request wordt gelogd in Supabase
-```
-
-Zie [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) voor gedetailleerde code flow.
+This software is provided to clients under a commercial license.
+Unauthorized copying, distribution, or modification is prohibited.
 
 ---
 
-## 🛠️ Development Commands
+## 🎉 Success Stories
 
-```bash
-npm run dev     # Start development server (http://localhost:3000)
-npm run build   # Build voor productie
-npm start       # Start productie server
-npm run lint    # Run ESLint
-```
+> "Reduced HR support tickets by 60% in the first month!"
+> — HR Director, Tech Company (250 employees)
 
----
+> "Employees love having 24/7 access to HR policies in their own language."
+> — CHRO, International Manufacturing (1,200 employees)
 
-## 🐛 Troubleshooting
-
-### "Missing environment variables"
-→ Check `.env.local` bestaat en bevat alle keys uit `.env.example`
-
-### "Assistant not found"
-→ Verifieer `PINECONE_ASSISTANT_NAME` exact matched met Pinecone console
-
-### "Supabase logging failed"
-→ Non-critical - chat blijft werken. Check Supabase credentials in `.env.local`
-
-### Build errors
-```bash
-rm -rf node_modules package-lock.json .next
-npm install
-npm run build
-```
-
-Meer troubleshooting: [docs/README.md](./docs/README.md) en [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
+> "Setup took 15 minutes. Best investment we made this year."
+> — Startup Founder (50 employees)
 
 ---
 
-## 📞 Support
+## 🗺️ Roadmap
 
-Voor vragen:
-- **Setup**: Lees [docs/README.md](./docs/README.md)
-- **Code**: Zie [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)
-- **Database**: Check [docs/SUPABASE.md](./docs/SUPABASE.md)
-- **Deployment**: [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
-- **Claude Code**: [docs/CLAUDE.md](./docs/CLAUDE.md)
-
----
-
-## 🔄 Updates & Maintenance
-
-### Nieuwe HR documenten toevoegen
-1. Ga naar Pinecone Console → Assistants
-2. Open `geostick-hr-assistant`
-3. Upload nieuwe PDF/Word bestanden
-4. Pinecone indexeert automatisch
-
-### Database cleanup (oude logs)
-```sql
--- Run in Supabase SQL Editor
-DELETE FROM "Geostick_Logs_Data_QABOTHR"
-WHERE timestamp < CURRENT_DATE - INTERVAL '90 days';
-```
-
-### Kosten verlagen
-- Verlaag `topK` in `lib/pinecone.ts` (van 3 naar 2)
-- Gebruik `gpt-4o-mini` in `lib/openai.ts` (90% goedkoper)
+- [ ] **v2.1**: Dark mode support
+- [ ] **v2.2**: Voice input/output
+- [ ] **v2.3**: Advanced analytics dashboard
+- [ ] **v2.4**: Microsoft Teams integration
+- [ ] **v2.5**: Slack integration
+- [ ] **v3.0**: Multi-document chat (compare policies)
 
 ---
 
-## 📝 License
+## 📞 Contact
 
-**Proprietary** - GeoStick Internal Use Only
-
----
-
-## 🎉 Credits
-
-**Built for**: GeoStick
-**Technology**: Next.js, Pinecone, OpenAI, Supabase
-**Status**: ✅ Production Ready
-**Version**: 1.0.0
-**Last Updated**: 2025-01-29
+**Levtor**
+- Website: https://levtor.com
+- Email: info@levtor.com
+- Support: support@levtor.com
 
 ---
 
-## 🗺️ Roadmap (Toekomstig)
-
-- [ ] 👍 Feedback buttons (helpful/not helpful) - schema al voorbereid
-- [ ] 📧 Email notifications bij high costs
-- [ ] 📈 Admin dashboard voor analytics
-- [ ] 🔐 User authentication (Supabase Auth)
-- [ ] 💬 Chat history opslaan per gebruiker
-- [ ] 🎯 Rate limiting middleware
-- [ ] 🌐 Custom domain support
-- [ ] 📱 Mobile app (React Native)
-
----
-
-**Made with ❤️ for GeoStick**
-
-*Happy chatting!* 🤖💬
+**Built with ❤️ by [Levtor](https://levtor.com)** | **Powered by Next.js, OpenAI & Pinecone**

@@ -5,7 +5,9 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(tree D:LevtorDemo''srag-demo /F /A 2)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { BRANDING } from "@/lib/branding.config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,7 +13,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Viewport configuration (Next.js 15+)
+// Viewport configuration (Next.js 15+) - Dynamic from BRANDING
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -20,32 +21,33 @@ export const viewport: Viewport = {
   userScalable: true,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#E31E24" },
-    { media: "(prefers-color-scheme: dark)", color: "#E31E24" }
+    { media: "(prefers-color-scheme: light)", color: BRANDING.colors.themeColor },
+    { media: "(prefers-color-scheme: dark)", color: BRANDING.colors.themeColor }
   ],
 };
 
+// Metadata - Fully dynamic from BRANDING config
 export const metadata: Metadata = {
-  title: "Geostick HR Assistent",
-  description: "Intelligente HR assistent voor Geostick medewerkers. Stel vragen over HR beleid, vakantiedagen, CAO, ziekteverlof en meer.",
-  applicationName: "Geostick HR Assistent",
-  authors: [{ name: "Geostick" }],
+  title: BRANDING.companyName,
+  description: BRANDING.description,
+  applicationName: BRANDING.companyName,
+  authors: [{ name: BRANDING.shortName }],
   generator: "Next.js",
-  keywords: ["Geostick", "HR", "Assistent", "Vakantiedagen", "CAO", "Ziekteverlof", "Personeelsgids"],
+  keywords: ["HR", "Assistant", "AI", "Policies", "Benefits", BRANDING.shortName],
   referrer: "origin-when-cross-origin",
-  creator: "Geostick",
-  publisher: "Geostick",
+  creator: BRANDING.shortName,
+  publisher: BRANDING.shortName,
   robots: "index, follow",
-  metadataBase: new URL("https://geostickqabot-hr-v1.vercel.app"),
+  metadataBase: new URL(BRANDING.urls.base),
 
-  // Manifest
-  manifest: "/manifest.json",
+  // Manifest (dynamic manifest.ts)
+  manifest: "/manifest.webmanifest",
 
   // Apple iOS specific
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Geostick HR",
+    title: BRANDING.shortName,
     startupImage: [
       {
         url: "/icons/apple-touch-icon.png",
@@ -79,20 +81,20 @@ export const metadata: Metadata = {
     address: false
   },
 
-  // Open Graph for social sharing
+  // Open Graph for social sharing - Dynamic
   openGraph: {
     type: "website",
-    locale: "nl_NL",
-    url: "https://geostickqabot-hr-v1.vercel.app",
-    siteName: "Geostick HR Assistent",
-    title: "Geostick HR Assistent",
-    description: "Intelligente HR assistent voor Geostick medewerkers. Stel vragen over HR beleid, vakantiedagen, CAO, ziekteverlof en meer.",
+    locale: BRANDING.locale.ogLocale,
+    url: BRANDING.urls.base,
+    siteName: BRANDING.companyName,
+    title: BRANDING.companyName,
+    description: BRANDING.description,
     images: [
       {
         url: "/icons/icon-512x512.png",
         width: 512,
         height: 512,
-        alt: "Geostick HR Assistent"
+        alt: BRANDING.companyName
       }
     ]
   }
@@ -104,7 +106,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="nl">
+    <html lang={BRANDING.locale.defaultLanguage}>
+      <head>
+        {/* Inject CSS custom properties for dynamic theming */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          :root {
+            --color-primary: ${BRANDING.colors.primary};
+            --color-primary-dark: ${BRANDING.colors.primaryDark};
+            --color-primary-light: ${BRANDING.colors.primaryLight};
+            --color-secondary: ${BRANDING.colors.secondary};
+            --color-background: ${BRANDING.colors.background};
+            --color-surface: ${BRANDING.colors.surface};
+            --color-text-primary: ${BRANDING.colors.text.primary};
+            --color-text-secondary: ${BRANDING.colors.text.secondary};
+            --color-text-tertiary: ${BRANDING.colors.text.tertiary};
+          }
+        `}} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

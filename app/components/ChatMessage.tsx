@@ -1,6 +1,7 @@
 'use client';
 
 import { getPdfUrl, isPdfAvailable } from '@/lib/pdf-urls';
+import { BRANDING } from '@/lib/branding.config';
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -15,23 +16,41 @@ export const ChatMessage = ({ role, content, citations, logId }: ChatMessageProp
   const handlePdfClick = (filename: string) => {
     if (isPdfAvailable(filename)) {
       const pdfUrl = getPdfUrl(filename);
-      // Open PDF directly in new tab
       window.open(pdfUrl, '_blank', 'noopener,noreferrer');
     }
+  };
+
+  // Dynamic styles from branding
+  const userBubbleStyle = {
+    background: `linear-gradient(to bottom right, ${BRANDING.colors.primary}, ${BRANDING.colors.primaryDark})`
+  };
+
+  const userAvatarStyle = {
+    background: `linear-gradient(to bottom right, ${BRANDING.colors.primary}, ${BRANDING.colors.primaryDark})`
+  };
+
+  const assistantIconStyle = {
+    color: BRANDING.colors.primary
+  };
+
+  const pdfIconStyle = {
+    color: BRANDING.colors.primary
   };
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} animate-fade-in w-full overflow-hidden`}>
       <div className={`flex gap-3 max-w-[85%] sm:max-w-[75%] ${isUser ? "flex-row-reverse" : "flex-row"}`}>
         {/* Avatar */}
-        <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg
-                        ${isUser ? "bg-gradient-to-br from-primary to-primary-dark" : "bg-white"}`}>
+        <div
+          className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg ${!isUser ? "bg-white" : ""}`}
+          style={isUser ? userAvatarStyle : undefined}
+        >
           {isUser ? (
             <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           ) : (
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" style={assistantIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
           )}
@@ -40,12 +59,8 @@ export const ChatMessage = ({ role, content, citations, logId }: ChatMessageProp
         {/* Message Bubble */}
         <div className="flex-1 min-w-0">
           <div
-            className={`px-4 py-3 rounded-2xl shadow-lg text-sm sm:text-base
-                       ${
-                         isUser
-                           ? "bg-gradient-to-br from-[#e32219] to-[#c01d15] text-white"
-                           : "bg-white text-gray-800 border border-gray-100"
-                       }`}
+            className={`px-4 py-3 rounded-2xl shadow-lg text-sm sm:text-base ${!isUser ? "bg-white text-gray-800 border border-gray-100" : "text-white"}`}
+            style={isUser ? userBubbleStyle : undefined}
           >
             <p className="whitespace-pre-wrap break-words overflow-hidden">{content}</p>
           </div>
@@ -82,7 +97,7 @@ export const ChatMessage = ({ role, content, citations, logId }: ChatMessageProp
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2">
-                            <svg className="w-4 h-4 flex-shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 flex-shrink-0" style={pdfIconStyle} fill="currentColor" viewBox="0 0 20 20">
                               <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
                             </svg>
                             <p className={`font-semibold text-gray-900 truncate transition-colors
@@ -92,7 +107,7 @@ export const ChatMessage = ({ role, content, citations, logId }: ChatMessageProp
                           </div>
                           {sortedPages.length > 0 && (
                             <p className="text-gray-600 text-xs ml-6">
-                              📄 Pagina {sortedPages.join(', ')}
+                              Pagina {sortedPages.join(', ')}
                             </p>
                           )}
                         </div>
@@ -114,11 +129,6 @@ export const ChatMessage = ({ role, content, citations, logId }: ChatMessageProp
               })()}
             </div>
           )}
-
-          {/* Feedback buttons - TODO: Implementeer feedback functionaliteit */}
-          {/* {!isUser && (
-            <FeedbackButtons logId={logId || null} />
-          )} */}
         </div>
       </div>
     </div>

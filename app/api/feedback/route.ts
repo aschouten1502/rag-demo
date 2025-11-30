@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/supabase-client';
+import { DATABASE_CONFIG } from '@/lib/supabase/config';
 
 export async function POST(request: NextRequest) {
   console.log('👍 [Feedback API] Received feedback request');
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // Update de feedback in de database
     const { data, error } = await supabase
-      .from('geostick_logs_data_qabothr')
+      .from(DATABASE_CONFIG.tableName)
       .update({
         feedback: feedback,
         feedback_comment: comment || null,

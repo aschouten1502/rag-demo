@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { TENANT_CONFIG, DATABASE_CONFIG, getConfigSummary } from './config';
 
 // Initialize Supabase client
 // This is a server-side only client for logging (no authentication)
@@ -14,6 +15,11 @@ if (!supabaseUrl || !supabaseServiceKey) {
 export const supabase = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
+
+// Log configuration on startup (development only)
+if (process.env.NODE_ENV === 'development' && supabase) {
+  console.log('🔧 [Supabase] Multi-tenant configuration:', getConfigSummary());
+}
 
 /**
  * Log a chat request to Supabase
@@ -49,36 +55,42 @@ export async function logChatRequest(data: {
   }
 
   try {
-    console.log('💾 [Supabase] Logging request to database...');
+    console.log(`💾 [Supabase] Logging request to table: ${DATABASE_CONFIG.tableName}`);
+
+    // Build insert payload with optional tenant_id
+    const insertPayload: any = {
+      session_id: data.session_id || null,
+      timestamp: data.timestamp,
+      question: data.question,
+      answer: data.answer,
+      language: data.language || 'nl',
+      response_time_seconds: data.response_time_seconds,
+      response_time_ms: data.response_time_ms,
+      pinecone_tokens: data.pinecone_tokens,
+      pinecone_cost: data.pinecone_cost,
+      openai_input_tokens: data.openai_input_tokens,
+      openai_output_tokens: data.openai_output_tokens,
+      openai_total_tokens: data.openai_total_tokens,
+      openai_cost: data.openai_cost,
+      total_cost: data.total_cost,
+      snippets_used: data.snippets_used,
+      citations_count: data.citations_count,
+      citations: data.citations || null,
+      conversation_history_length: data.conversation_history_length,
+      blocked: data.blocked || false,
+      event_type: data.event_type || 'chat_request',
+      error_details: data.error_details || null,
+      is_complete: data.answer !== '[Streaming in progress...]', // Mark placeholder logs as incomplete
+    };
+
+    // Add tenant_id if multi-tenant mode is enabled
+    if (DATABASE_CONFIG.enableTenantId && TENANT_CONFIG.tenantId) {
+      insertPayload.tenant_id = TENANT_CONFIG.tenantId;
+    }
 
     const { data: insertedData, error } = await supabase
-      .from('geostick_logs_data_qabothr')
-      .insert([
-        {
-          session_id: data.session_id || null,
-          timestamp: data.timestamp,
-          question: data.question,
-          answer: data.answer,
-          language: data.language || 'nl',
-          response_time_seconds: data.response_time_seconds,
-          response_time_ms: data.response_time_ms,
-          pinecone_tokens: data.pinecone_tokens,
-          pinecone_cost: data.pinecone_cost,
-          openai_input_tokens: data.openai_input_tokens,
-          openai_output_tokens: data.openai_output_tokens,
-          openai_total_tokens: data.openai_total_tokens,
-          openai_cost: data.openai_cost,
-          total_cost: data.total_cost,
-          snippets_used: data.snippets_used,
-          citations_count: data.citations_count,
-          citations: data.citations || null,
-          conversation_history_length: data.conversation_history_length,
-          blocked: data.blocked || false,
-          event_type: data.event_type || 'chat_request',
-          error_details: data.error_details || null,
-          is_complete: data.answer !== '[Streaming in progress...]', // Mark placeholder logs as incomplete
-        },
-      ])
+      .from(DATABASE_CONFIG.tableName)
+      .insert([insertPayload])
       .select();
 
     if (error) {
@@ -135,7 +147,7 @@ export async function updateChatRequest(
     };
 
     const { data: updatedData, error } = await supabase
-      .from('geostick_logs_data_qabothr')
+      .from(DATABASE_CONFIG.tableName)
       .update(updatePayload)
       .eq('id', logId)
       .select();
@@ -146,7 +158,7 @@ export async function updateChatRequest(
       // Log the error in the database if we can
       if (incrementAttempts) {
         await supabase
-          .from('geostick_logs_data_qabothr')
+          .from(DATABASE_CONFIG.tableName)
           .update({
             completion_error: error.message,
           })
@@ -166,7 +178,7 @@ export async function updateChatRequest(
     if (incrementAttempts) {
       try {
         await supabase
-          .from('geostick_logs_data_qabothr')
+          .from(DATABASE_CONFIG.tableName)
           .update({
             completion_error: error.message,
           })
@@ -229,7 +241,7 @@ export async function updateChatRequestWithRetry(
   // Mark as permanently failed
   try {
     await supabase
-      ?.from('geostick_logs_data_qabothr')
+      ?.from(DATABASE_CONFIG.tableName)
       .update({
         completion_error: `Failed after ${maxRetries} retry attempts: ${lastError}`,
       })

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { translations, type LanguageCode } from "../translations";
+import { BRANDING } from "@/lib/branding.config";
 
 const LANGUAGES = [
   { code: "nl", name: "Nederlands", flag: "🇳🇱" },
@@ -43,19 +44,42 @@ export const ChatHeader = ({ selectedLanguage, onLanguageChange }: ChatHeaderPro
     }
   }, [isDropdownOpen]);
 
+  // Dynamic styles from branding config
+  const headerStyle = {
+    background: `linear-gradient(to right, ${BRANDING.colors.primary}, ${BRANDING.colors.primaryDark})`
+  };
+
+  const logoStyle = {
+    color: BRANDING.colors.primary
+  };
+
   return (
-    <header className="bg-gradient-to-r from-[#e32219] to-[#c01d15] shadow-2xl">
+    <header className="shadow-2xl" style={headerStyle}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex items-center justify-between">
           {/* Logo + Title Section */}
           <div className="flex items-center gap-3">
-            <div className="bg-white rounded-xl p-2.5 shadow-lg">
-              <img
-                src="/Afbeeldingen/Geosticklogo.png"
-                alt="Geostick"
-                className="h-8 w-auto"
-              />
-            </div>
+            {BRANDING.logo.main ? (
+              // Use logo image if configured
+              <div className="bg-white rounded-xl p-2.5 shadow-lg">
+                <img
+                  src={BRANDING.logo.main}
+                  alt={BRANDING.shortName}
+                  className="h-8 w-auto"
+                  style={{
+                    width: BRANDING.logo.dimensions.width ? `${BRANDING.logo.dimensions.width}px` : 'auto',
+                    height: BRANDING.logo.dimensions.height ? `${BRANDING.logo.dimensions.height}px` : '32px'
+                  }}
+                />
+              </div>
+            ) : (
+              // Use text logo if no image configured
+              <div className="bg-white rounded-xl px-4 py-2.5 shadow-lg">
+                <h1 className="text-xl font-bold tracking-tight" style={logoStyle}>
+                  {BRANDING.shortName.toUpperCase()}
+                </h1>
+              </div>
+            )}
             <div>
               <h1 className="text-white text-lg sm:text-xl font-bold">
                 {t.appTitle}
@@ -91,9 +115,23 @@ export const ChatHeader = ({ selectedLanguage, onLanguageChange }: ChatHeaderPro
                       onLanguageChange(lang.code);
                       setIsDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-4 py-3 hover:bg-[#ece31e]/20 transition-all
-                                flex items-center gap-3 text-sm text-gray-800
-                                ${lang.code === selectedLanguage ? "bg-[#ece31e]/30 font-semibold" : ""}`}
+                    className="w-full text-left px-4 py-3 transition-all flex items-center gap-3 text-sm text-gray-800"
+                    style={{
+                      backgroundColor: lang.code === selectedLanguage
+                        ? `${BRANDING.colors.primary}20`
+                        : 'transparent',
+                      fontWeight: lang.code === selectedLanguage ? 600 : 400
+                    }}
+                    onMouseEnter={(e) => {
+                      if (lang.code !== selectedLanguage) {
+                        e.currentTarget.style.backgroundColor = `${BRANDING.colors.primary}10`;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (lang.code !== selectedLanguage) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
                   >
                     <span className="text-lg">{lang.flag}</span>
                     <span>{lang.name}</span>

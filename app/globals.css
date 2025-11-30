@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  /* Geostick Brand Colors - HSL format */
-  --geostick-red: 3 79% 50%;          /* #e32219 */
-  --geostick-red-dark: 4 78% 43%;     /* #c01d15 */
-  --geostick-yellow: 56 81% 52%;       /* #ece31e */
+  /* Primary Brand Colors - HSL format - Professional Purple */
+  --primary-purple: 270 70% 60%;        /* #8B5CF6 - Professional Purple */
+  --primary-purple-dark: 270 70% 50%;   /* #7C3AED - Dark Purple */
+  --primary-purple-light: 270 70% 70%;  /* #A78BFA - Light Purple */
 
-  /* Semantic tokens */
-  --background: 30 100% 97%;           /* Warm off-white */
-  --foreground: 0 0% 13%;              /* Dark gray text */
+  /* Semantic tokens - White Background with Purple Accents */
+  --background: 0 0% 100%;              /* Pure white */
+  --foreground: 0 0% 13%;               /* Dark gray text */
 
   --card: 0 0% 100%;
   --card-foreground: 0 0% 13%;
@@ -16,16 +16,16 @@
   --popover: 0 0% 100%;
   --popover-foreground: 0 0% 13%;
 
-  --primary: 3 79% 50%;                /* Geostick red */
+  --primary: 270 70% 60%;               /* Purple primary */
   --primary-foreground: 0 0% 100%;
 
-  --primary-dark: 4 78% 43%;           /* Darker red for gradients */
+  --primary-dark: 270 70% 50%;          /* Darker purple for gradients */
 
   --secondary: 0 0% 96%;
   --secondary-foreground: 0 0% 13%;
 
-  --accent: 56 81% 52%;                /* Geostick yellow */
-  --accent-foreground: 0 0% 13%;
+  --accent: 270 70% 60%;                /* Purple accent */
+  --accent-foreground: 0 0% 100%;
 
   --muted: 0 0% 96%;
   --muted-foreground: 0 0% 45%;
@@ -34,25 +34,25 @@
   --destructive-foreground: 0 0% 98%;
 
   --border: 0 0% 91%;
-  --input: 0 0% 91%;
-  --ring: 3 79% 50%;
+  --input: 0 0% 100%;                   /* White input */
+  --ring: 270 70% 60%;
 
   --radius: 1rem;
 
-  /* Chat specific colors */
-  --chat-user-bubble: 3 79% 50%;       /* Red gradient start */
-  --chat-assistant-bubble: 0 0% 100%;  /* White */
-  --chat-citation-bg: 56 100% 95%;     /* Light yellow */
-  --chat-citation-border: 56 81% 52%;  /* Yellow */
+  /* Chat specific colors - White with Purple Accents */
+  --chat-user-bubble: 270 70% 60%;      /* Purple user bubble */
+  --chat-assistant-bubble: 0 0% 100%;   /* White */
+  --chat-citation-bg: 270 100% 97%;     /* Light purple */
+  --chat-citation-border: 270 70% 60%;  /* Purple */
 
-  /* Background gradient colors */
-  --bg-gradient-start: 25 100% 97%;    /* Orange tint */
-  --bg-gradient-mid: 0 0% 100%;        /* White */
-  --bg-gradient-end: 56 100% 97%;      /* Yellow tint */
+  /* Background gradient colors - White */
+  --bg-gradient-start: 0 0% 100%;       /* White */
+  --bg-gradient-mid: 0 0% 100%;         /* White */
+  --bg-gradient-end: 0 0% 100%;         /* White */
 }
 
 @theme inline {
-  /* Geostick Colors */
+  /* Primary Brand Colors */
   --color-primary: hsl(var(--primary));
   --color-primary-dark: hsl(var(--primary-dark));
   --color-accent: hsl(var(--accent));
@@ -72,10 +72,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Disabled dark mode preference - always use blacklight theme */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Keep blacklight theme even in dark mode */
   }
 }
 
@@ -140,7 +140,7 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar styling */
+/* Custom scrollbar styling - Purple Accent */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -151,10 +151,10 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #e32219;
+  background: hsl(270, 70%, 60%);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #c01d15;
+  background: hsl(270, 70%, 50%);
 }

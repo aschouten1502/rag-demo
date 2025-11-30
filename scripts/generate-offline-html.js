@@ -1,9 +1,43 @@
-<!DOCTYPE html>
+/**
+ * Generate offline.html from branding config
+ *
+ * Run with: node scripts/generate-offline-html.js
+ *
+ * This script generates a static offline.html file using the branding
+ * configuration from environment variables. Run this during build or
+ * after configuring a new client.
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+// Load environment variables from .env.local if available
+const envPath = path.join(__dirname, '..', '.env.local');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  envContent.split('\n').forEach(line => {
+    const match = line.match(/^([^=:#]+)=(.*)$/);
+    if (match) {
+      const key = match[1].trim();
+      const value = match[2].trim().replace(/^["']|["']$/g, '');
+      if (!process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  });
+}
+
+// Get branding values from environment
+const companyName = process.env.NEXT_PUBLIC_COMPANY_NAME || 'HR Assistant';
+const primaryColor = process.env.NEXT_PUBLIC_PRIMARY_COLOR || '#8B5CF6';
+const primaryDark = process.env.NEXT_PUBLIC_PRIMARY_DARK || '#7C3AED';
+
+const offlineHtml = `<!DOCTYPE html>
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Offline - Levtor HR Assistant</title>
+    <title>Offline - ${companyName}</title>
     <style>
         * {
             margin: 0;
@@ -13,7 +47,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+            background: linear-gradient(135deg, ${primaryColor} 0%, ${primaryDark} 100%);
             color: white;
             min-height: 100vh;
             display: flex;
@@ -65,7 +99,7 @@
         .button {
             display: inline-block;
             background: white;
-            color: #8B5CF6;
+            color: ${primaryColor};
             padding: 15px 30px;
             border-radius: 10px;
             text-decoration: none;
@@ -101,7 +135,7 @@
         <div class="icon">📡</div>
         <h1>Je bent offline</h1>
         <p>
-            De Levtor HR Assistant is momenteel niet bereikbaar omdat je geen internetverbinding hebt.
+            ${companyName} is momenteel niet bereikbaar omdat je geen internetverbinding hebt.
             Controleer je verbinding en probeer het opnieuw.
         </p>
         <button class="button" onclick="window.location.reload()">
@@ -113,13 +147,11 @@
     </div>
 
     <script>
-        // Check connection status
         function updateConnectionStatus() {
             const statusElement = document.getElementById('connectionStatus');
             if (navigator.onLine) {
                 statusElement.textContent = 'Online';
                 statusElement.className = 'online';
-                // Auto-reload when back online
                 setTimeout(() => {
                     window.location.reload();
                 }, 1000);
@@ -129,15 +161,20 @@
             }
         }
 
-        // Listen for online/offline events
         window.addEventListener('online', updateConnectionStatus);
         window.addEventListener('offline', updateConnectionStatus);
-
-        // Check on load
         updateConnectionStatus();
-
-        // Periodic check (every 5 seconds)
         setInterval(updateConnectionStatus, 5000);
     </script>
 </body>
-</html>
+</html>`;
+
+// Write to public folder
+const outputPath = path.join(__dirname, '..', 'public', 'offline.html');
+fs.writeFileSync(outputPath, offlineHtml, 'utf8');
+
+console.log('✅ Generated offline.html with branding:');
+console.log(`   Company: ${companyName}`);
+console.log(`   Primary Color: ${primaryColor}`);
+console.log(`   Primary Dark: ${primaryDark}`);
+console.log(`   Output: ${outputPath}`);

@@ -6,6 +6,120 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+/**
+ * Generic Chat Logs Row Type
+ *
+ * This type defines the schema for chat request logs.
+ * Compatible with multiple table names:
+ * - "chat_logs" (default/generic)
+ * - "geostick_logs_data_qabothr" (legacy)
+ * - "{tenant-id}_chat_logs" (client-specific)
+ *
+ * NOTE: The tenant_id field is optional for backwards compatibility.
+ * New deployments should include tenant_id in shared database scenarios.
+ */
+export interface ChatLogRow {
+  answer: string
+  blocked: boolean | null
+  citations: Json | null
+  citations_count: number | null
+  completion_error: string | null
+  conversation_history_length: number | null
+  created_at: string | null
+  error_details: string | null
+  event_type: string | null
+  feedback: string | null
+  feedback_comment: string | null
+  feedback_timestamp: string | null
+  id: string
+  is_complete: boolean | null
+  language: string | null
+  openai_cost: number | null
+  openai_input_tokens: number | null
+  openai_output_tokens: number | null
+  openai_total_tokens: number | null
+  pinecone_cost: number | null
+  pinecone_tokens: number | null
+  question: string
+  response_time_ms: number | null
+  response_time_seconds: number | null
+  session_id: string | null
+  snippets_used: number | null
+  timestamp: string
+  total_cost: number | null
+  update_attempts: number | null
+  updated_at: string | null
+  tenant_id?: string | null  // Optional: for multi-tenant shared database
+}
+
+export interface ChatLogInsert {
+  answer: string
+  blocked?: boolean | null
+  citations?: Json | null
+  citations_count?: number | null
+  completion_error?: string | null
+  conversation_history_length?: number | null
+  created_at?: string | null
+  error_details?: string | null
+  event_type?: string | null
+  feedback?: string | null
+  feedback_comment?: string | null
+  feedback_timestamp?: string | null
+  id?: string
+  is_complete?: boolean | null
+  language?: string | null
+  openai_cost?: number | null
+  openai_input_tokens?: number | null
+  openai_output_tokens?: number | null
+  openai_total_tokens?: number | null
+  pinecone_cost?: number | null
+  pinecone_tokens?: number | null
+  question: string
+  response_time_ms?: number | null
+  response_time_seconds?: number | null
+  session_id?: string | null
+  snippets_used?: number | null
+  timestamp?: string
+  total_cost?: number | null
+  update_attempts?: number | null
+  updated_at?: string | null
+  tenant_id?: string | null  // Optional: for multi-tenant shared database
+}
+
+export interface ChatLogUpdate {
+  answer?: string
+  blocked?: boolean | null
+  citations?: Json | null
+  citations_count?: number | null
+  completion_error?: string | null
+  conversation_history_length?: number | null
+  created_at?: string | null
+  error_details?: string | null
+  event_type?: string | null
+  feedback?: string | null
+  feedback_comment?: string | null
+  feedback_timestamp?: string | null
+  id?: string
+  is_complete?: boolean | null
+  language?: string | null
+  openai_cost?: number | null
+  openai_input_tokens?: number | null
+  openai_output_tokens?: number | null
+  openai_total_tokens?: number | null
+  pinecone_cost?: number | null
+  pinecone_tokens?: number | null
+  question?: string
+  response_time_ms?: number | null
+  response_time_seconds?: number | null
+  session_id?: string | null
+  snippets_used?: number | null
+  timestamp?: string
+  total_cost?: number | null
+  update_attempts?: number | null
+  updated_at?: string | null
+  tenant_id?: string | null  // Optional: for multi-tenant shared database
+}
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -14,103 +128,18 @@ export type Database = {
   }
   public: {
     Tables: {
+      // Legacy table name (backwards compatible)
       geostick_logs_data_qabothr: {
-        Row: {
-          answer: string
-          blocked: boolean | null
-          citations: Json | null
-          citations_count: number | null
-          completion_error: string | null
-          conversation_history_length: number | null
-          created_at: string | null
-          error_details: string | null
-          event_type: string | null
-          feedback: string | null
-          feedback_comment: string | null
-          feedback_timestamp: string | null
-          id: string
-          is_complete: boolean | null
-          language: string | null
-          openai_cost: number | null
-          openai_input_tokens: number | null
-          openai_output_tokens: number | null
-          openai_total_tokens: number | null
-          pinecone_cost: number | null
-          pinecone_tokens: number | null
-          question: string
-          response_time_ms: number | null
-          response_time_seconds: number | null
-          session_id: string | null
-          snippets_used: number | null
-          timestamp: string
-          total_cost: number | null
-          update_attempts: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          answer: string
-          blocked?: boolean | null
-          citations?: Json | null
-          citations_count?: number | null
-          completion_error?: string | null
-          conversation_history_length?: number | null
-          created_at?: string | null
-          error_details?: string | null
-          event_type?: string | null
-          feedback?: string | null
-          feedback_comment?: string | null
-          feedback_timestamp?: string | null
-          id?: string
-          is_complete?: boolean | null
-          language?: string | null
-          openai_cost?: number | null
-          openai_input_tokens?: number | null
-          openai_output_tokens?: number | null
-          openai_total_tokens?: number | null
-          pinecone_cost?: number | null
-          pinecone_tokens?: number | null
-          question: string
-          response_time_ms?: number | null
-          response_time_seconds?: number | null
-          session_id?: string | null
-          snippets_used?: number | null
-          timestamp?: string
-          total_cost?: number | null
-          update_attempts?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          answer?: string
-          blocked?: boolean | null
-          citations?: Json | null
-          citations_count?: number | null
-          completion_error?: string | null
-          conversation_history_length?: number | null
-          created_at?: string | null
-          error_details?: string | null
-          event_type?: string | null
-          feedback?: string | null
-          feedback_comment?: string | null
-          feedback_timestamp?: string | null
-          id?: string
-          is_complete?: boolean | null
-          language?: string | null
-          openai_cost?: number | null
-          openai_input_tokens?: number | null
-          openai_output_tokens?: number | null
-          openai_total_tokens?: number | null
-          pinecone_cost?: number | null
-          pinecone_tokens?: number | null
-          question?: string
-          response_time_ms?: number | null
-          response_time_seconds?: number | null
-          session_id?: string | null
-          snippets_used?: number | null
-          timestamp?: string
-          total_cost?: number | null
-          update_attempts?: number | null
-          updated_at?: string | null
-        }
+        Row: ChatLogRow
+        Insert: ChatLogInsert
+        Update: ChatLogUpdate
+        Relationships: []
+      }
+      // Generic table name (recommended for new deployments)
+      chat_logs: {
+        Row: ChatLogRow
+        Insert: ChatLogInsert
+        Update: ChatLogUpdate
         Relationships: []
       }
     }

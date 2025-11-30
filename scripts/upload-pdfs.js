@@ -30,8 +30,9 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const DOCUMENTS_DIR = path.join(__dirname, '..', 'Geostickhrdocumenten');
-const BUCKET_NAME = 'Geostick HR documenten';
+// Configure these paths for your client
+const DOCUMENTS_DIR = path.join(__dirname, '..', 'hr-documents');
+const BUCKET_NAME = process.env.STORAGE_BUCKET_NAME || 'hr-documents';
 
 async function uploadPDFs() {
   console.log('📤 Starting PDF upload to Supabase Storage...\n');

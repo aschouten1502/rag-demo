@@ -1,34 +1,37 @@
 'use client';
 
+import { BRANDING } from '@/lib/branding.config';
+
 export const LogoBackground = () => {
-  // Create array of 90 logos for beautiful background pattern (increased from 56)
-  const logoCount = 90;
-  const logos = Array.from({ length: logoCount }, (_, i) => i);
+  // Create array of 40 DEMO text elements for clean background pattern
+  const demoCount = 40;
+  const demoItems = Array.from({ length: demoCount }, (_, i) => i);
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Warme gradient achtergrond */}
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-yellow-50" />
+      {/* Clean white background */}
+      <div className="absolute inset-0 bg-white" />
 
-      {/* Logo pattern - More visible and more frequent */}
-      <div className="absolute inset-0 grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10
-                      gap-4 sm:gap-6 md:gap-8 lg:gap-10
-                      p-4 sm:p-6 md:p-8 lg:p-10
+      {/* DEMO text pattern - Very subtle watermark */}
+      <div className="absolute inset-0 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6
+                      gap-12 sm:gap-16 md:gap-20 lg:gap-24
+                      p-8 sm:p-12 md:p-16 lg:p-20
                       place-items-center">
-        {logos.map((i) => (
+        {demoItems.map((i) => (
           <div
             key={i}
             className="flex items-center justify-center"
           >
-            <img
-              src="/Afbeeldingen/Geosticklogo.png"
-              alt=""
-              className="w-12 sm:w-14 md:w-16 lg:w-20 h-auto select-none"
+            <div
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-gray-200 select-none"
               style={{
-                opacity: 0.08,
-                filter: "grayscale(50%) brightness(1.2)",
+                opacity: 0.15,
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                letterSpacing: '0.1em'
               }}
-            />
+            >
+              DEMO
+            </div>
           </div>
         ))}
       </div>

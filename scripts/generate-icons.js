@@ -2,7 +2,8 @@ const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
-const sourceIcon = path.join(__dirname, '..', 'public', 'Afbeeldingen', 'Geosticklogo.png');
+// Source icon - place your logo here (e.g., logo.png)
+const sourceIcon = path.join(__dirname, '..', 'public', 'logo.png');
 const iconsDir = path.join(__dirname, '..', 'public', 'icons');
 
 // Create icons directory if it doesn't exist
