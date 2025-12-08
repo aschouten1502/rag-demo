@@ -180,6 +180,39 @@ export const BRANDING = {
   },
 
   // ========================================
+  // FUN FACTS (shown during loading)
+  // ========================================
+  funFacts: {
+    // Enable/disable fun facts during loading
+    enabled: process.env.NEXT_PUBLIC_FUN_FACTS_ENABLED !== 'false',
+
+    // Prefix shown before each fact (e.g., "Wist je dat...")
+    prefix: process.env.NEXT_PUBLIC_FUN_FACTS_PREFIX || "Wist je dat",
+
+    // Array of fun facts - parsed from JSON env var or defaults
+    facts: (() => {
+      const envFacts = process.env.NEXT_PUBLIC_FUN_FACTS;
+      if (envFacts) {
+        try {
+          return JSON.parse(envFacts) as string[];
+        } catch {
+          return [];
+        }
+      }
+      // Default demo facts (replace per client)
+      return [
+        "deze HR Assistent in 12 talen kan antwoorden?",
+        "je hier 24/7 terecht kunt met HR vragen?",
+        "de antwoorden gebaseerd zijn op officiële HR documenten?",
+        "je verlof digitaal kunt aanvragen via het HR portaal?",
+      ];
+    })(),
+
+    // Rotation interval in milliseconds
+    rotationInterval: 4000,
+  },
+
+  // ========================================
   // VERSION
   // ========================================
   version: "2.0.0"

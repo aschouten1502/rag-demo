@@ -427,6 +427,27 @@ NEXT_PUBLIC_PRIMARY_COLOR=#FF5733
 
 **Option 2**: Edit [lib/branding.config.ts](lib/branding.config.ts) directly
 
+### Configuring Fun Facts (Loading Screen)
+"Wist je dat..." facts shown while the bot is thinking. Configured per client.
+
+**Option 1**: Via `CLIENT_CONFIG.md` (recommended)
+```yaml
+fun_facts:
+  - wij al 25 jaar bestaan?
+  - ons hoofdkantoor in Rotterdam staat?
+```
+
+**Option 2**: Environment variable
+```bash
+NEXT_PUBLIC_FUN_FACTS='["wij al 25 jaar bestaan?","ons hoofdkantoor in Rotterdam staat?"]'
+NEXT_PUBLIC_FUN_FACTS_PREFIX=Wist je dat
+NEXT_PUBLIC_FUN_FACTS_ENABLED=true
+```
+
+**Option 3**: Edit defaults in [lib/branding.config.ts](lib/branding.config.ts)
+
+Facts rotate every 4 seconds with fade animation. Disable with `NEXT_PUBLIC_FUN_FACTS_ENABLED=false`.
+
 ### Adding a New Language
 1. Add language name to `languageNames` in [lib/prompts.ts](lib/prompts.ts)
 2. Add translations to `translations` object in [app/translations.ts](app/translations.ts)

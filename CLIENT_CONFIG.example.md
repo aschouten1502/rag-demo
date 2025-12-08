@@ -201,7 +201,43 @@ bucket_name: [Bucket naam]                 # Voorbeeld: acme-corp-hr-documents
 
 ---
 
-## 6️⃣ FEATURES & OPTIES (OPTIONEEL)
+## 6️⃣ FUN FACTS (OPTIONEEL)
+
+**"Wist je dat..." feitjes** worden getoond terwijl de bot nadenkt over een antwoord.
+Dit maakt de wachtervaring leuker en promoot bedrijfsinformatie.
+
+### Fun Facts Configuratie
+```yaml
+fun_facts_enabled: true                    # true/false
+fun_facts_prefix: Wist je dat              # Prefix voor elk feitje (zonder "...")
+```
+
+### Fun Facts (één per regel)
+```yaml
+fun_facts:
+  - wij al 25 jaar bestaan?
+  - ons hoofdkantoor in Rotterdam staat?
+  - we meer dan 200 medewerkers hebben?
+  - we vorig jaar de HR Innovation Award wonnen?
+  - je bij ons 25 vakantiedagen krijgt?
+  - we een eigen bedrijfsrestaurant hebben?
+```
+
+**Tips:**
+- Begin elk feitje met een kleine letter (prefix "Wist je dat" wordt automatisch toegevoegd)
+- Eindig met een vraagteken voor consistentie
+- 5-10 feitjes is ideaal
+- Houd feitjes kort (max 1 regel)
+- Mix bedrijfsfeitjes met leuke weetjes
+
+**Voorbeelden per branche:**
+- **Tech:** "we dagelijks 1 miljoen requests verwerken?"
+- **Retail:** "we 50 winkels in Nederland hebben?"
+- **Healthcare:** "we vorig jaar 10.000 patiënten hielpen?"
+
+---
+
+## 7️⃣ FEATURES & OPTIES (OPTIONEEL)
 
 ### Feature Flags
 ```yaml
