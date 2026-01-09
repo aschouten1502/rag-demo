@@ -8,17 +8,22 @@
  *
  * FLOW:
  * 1. Ontvang vraag van gebruiker + conversatie geschiedenis
- * 2. Haal relevante context op uit Pinecone (HR documenten)
+ * 2. Haal relevante context op uit Supabase RAG (HR documenten)
  * 3. Genereer system prompt met context
  * 4. Vraag OpenAI om antwoord te genereren
  * 5. Stuur antwoord + citations terug naar gebruiker
  * 6. Log alles voor analytics en debugging
+ *
+ * UPDATE v2.1: Pinecone vervangen door Supabase RAG
+ * - ~99% kostenbesparing op context retrieval
+ * - Zelfde interface voor backwards compatibility
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 
 // Import alle modules
-import { initializePinecone, retrieveContext } from '@/lib/pinecone';
+// UPDATED: Pinecone vervangen door Supabase RAG
+import { retrieveContext } from '@/lib/rag/context';
 import { initializeOpenAI, prepareMessages, generateStreamingAnswer } from '@/lib/openai';
 import { generateSystemPrompt } from '@/lib/prompts';
 import {
@@ -50,6 +55,7 @@ export async function POST(request: NextRequest) {
   let message: string = '';
   let conversationHistory: any[] = [];
   let language: string = 'nl';
+  let tenantId: string = '';
 
   try {
     // ========================================
@@ -61,8 +67,23 @@ export async function POST(request: NextRequest) {
     language = body.language || 'nl';
     const sessionId = body.sessionId;
 
+    // ========================================
+    // STEP 1.5: Get Tenant ID (MULTI-TENANT)
+    // ========================================
+    // Priority: 1. Request body, 2. Header (from middleware), 3. Env var
+    tenantId = body.tenantId
+      || request.headers.get('x-tenant-id')
+      || process.env.TENANT_ID
+      || '';
+
+    const tenantSource = body.tenantId ? 'body'
+      : request.headers.get('x-tenant-id') ? 'header'
+      : process.env.TENANT_ID ? 'env'
+      : 'none';
+
     console.log('\n📝 [API] ========== USER QUESTION ==========');
     console.log('🔑 [API] Session ID:', sessionId || 'NO_SESSION_ID');
+    console.log('🏢 [API] Tenant ID:', tenantId || 'NOT_SET', `(source: ${tenantSource})`);
     console.log('❓ [API] Question:', message);
     console.log('💬 [API] Conversation history length:', conversationHistory?.length || 0);
     console.log('🌐 [API] Selected language:', language);
@@ -76,35 +97,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Valideer dat er een tenant ID is
+    if (!tenantId) {
+      console.log('❌ [API] No tenant ID provided');
+      return NextResponse.json(
+        { error: 'Tenant ID is required. Provide via ?tenant=xxx, X-Tenant-ID header, or request body.' },
+        { status: 400 }
+      );
+    }
+
     // ========================================
     // STEP 2: Check environment configuratie
     // ========================================
-    const pineconeApiKey = process.env.PINECONE_API_KEY;
     const openaiApiKey = process.env.OPENAI_API_KEY;
-    const assistantName = process.env.PINECONE_ASSISTANT_NAME;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    console.log('🔑 [API] Pinecone API Key exists:', !!pineconeApiKey);
     console.log('🔑 [API] OpenAI API Key exists:', !!openaiApiKey);
-    console.log('🤖 [API] Assistant name:', assistantName);
+    console.log('🔑 [API] Supabase configured:', !!supabaseUrl && !!supabaseKey);
 
-    if (!pineconeApiKey || !assistantName || !openaiApiKey) {
-      console.log('❌ [API] Missing configuration');
+    if (!openaiApiKey) {
+      console.log('❌ [API] Missing OpenAI API key');
       return NextResponse.json(
-        { error: 'Server configuration error: Missing API keys or assistant name' },
+        { error: 'Server configuration error: Missing OpenAI API key' },
+        { status: 500 }
+      );
+    }
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.log('❌ [API] Missing Supabase configuration');
+      return NextResponse.json(
+        { error: 'Server configuration error: Missing Supabase configuration' },
         { status: 500 }
       );
     }
 
     // ========================================
-    // STEP 3: Initialiseer Pinecone en haal context op
+    // STEP 3: Haal context op via Supabase RAG
     // ========================================
-    const pineconeClient = initializePinecone(pineconeApiKey);
     const {
       contextText,
       citations,
-      pineconeTokens,
-      pineconeCost
-    } = await retrieveContext(assistantName, pineconeClient, message);
+      embeddingTokens,
+      embeddingCost,
+      ragDetails  // NEW: Capture RAG pipeline details for logging
+    } = await retrieveContext(tenantId, message);
+
+    // Voor backwards compatibility gebruiken we dezelfde variabelenamen
+    const ragTokens = embeddingTokens;
+    const ragCost = embeddingCost;
 
     // ========================================
     // STEP 4: Genereer system prompt
@@ -125,24 +166,26 @@ export async function POST(request: NextRequest) {
     let logId: string | null = null;
     try {
       const placeholderSummary: RequestSummary = {
+        tenant_id: tenantId,  // Required for multi-tenant
         session_id: sessionId || 'NO_SESSION_ID',
         timestamp: new Date(requestStartTime).toISOString(),
         question: message,
         answer: '[Streaming in progress...]', // Placeholder
         response_time_seconds: 0,
         response_time_ms: 0,
-        pinecone_tokens: pineconeTokens,
-        pinecone_cost: parseFloat(pineconeCost.toFixed(6)),
+        pinecone_tokens: ragTokens, // Now using Supabase RAG (embedding tokens)
+        pinecone_cost: parseFloat(ragCost.toFixed(6)), // Now using Supabase RAG cost
         openai_input_tokens: 0, // Wordt later geupdate
         openai_output_tokens: 0,
         openai_total_tokens: 0,
         openai_cost: 0,
-        total_cost: parseFloat(pineconeCost.toFixed(6)),
+        total_cost: parseFloat(ragCost.toFixed(6)),
         snippets_used: citations.length,
         citations_count: citations.length,
         conversation_history_length: conversationHistory?.length || 0,
         language: language,
-        citations: citations
+        citations: citations,
+        rag_details: ragDetails  // NEW: Include RAG pipeline details
       };
       logId = await logSuccessfulRequest(placeholderSummary);
       console.log('✅ [API] Placeholder log created with ID:', logId);
@@ -165,12 +208,15 @@ export async function POST(request: NextRequest) {
     const transformedStream = new ReadableStream({
       async start(controller) {
         try {
-          // Stuur eerst de metadata (citations, pinecone info, EN logId!)
+          // Stuur eerst de metadata (citations, RAG info, EN logId!)
           const metadataEvent = JSON.stringify({
             type: 'metadata',
             citations: citations,
-            pineconeTokens: pineconeTokens,
-            pineconeCost: parseFloat(pineconeCost.toFixed(6)),
+            ragTokens: ragTokens,           // Supabase RAG embedding tokens
+            ragCost: parseFloat(ragCost.toFixed(6)), // Supabase RAG cost
+            // Backwards compatibility - frontend may still expect these
+            pineconeTokens: ragTokens,
+            pineconeCost: parseFloat(ragCost.toFixed(6)),
             sessionId: sessionId || 'NO_SESSION_ID',
             requestStartTime: requestStartTime,
             logId: logId  // ← NU HEBBEN WE EEN LOGID!
@@ -275,7 +321,7 @@ export async function POST(request: NextRequest) {
             openai_output_tokens: 0,
             openai_total_tokens: 0,
             openai_cost: 0,
-            total_cost: parseFloat(pineconeCost.toFixed(6))
+            total_cost: parseFloat(ragCost.toFixed(6))
           }, 3);
 
           if (result.success) {
@@ -291,7 +337,31 @@ export async function POST(request: NextRequest) {
 
       // Normal completion - update with full data
       if (finalUsage && fullAnswer) {
-        const totalCost = parseFloat(pineconeCost.toFixed(6)) + (finalUsage.totalCost || 0);
+        const totalCost = parseFloat(ragCost.toFixed(6)) + (finalUsage.totalCost || 0);
+
+        // Update ragDetails with OpenAI information
+        const finalRagDetails = ragDetails ? {
+          ...ragDetails,
+          openai: {
+            model: 'gpt-4o',
+            temperature: 0.7,
+            systemPromptTokens: 0, // Would need to calculate from system prompt
+            inputTokens: finalUsage.inputTokens || 0,
+            outputTokens: finalUsage.outputTokens || 0,
+            totalTokens: finalUsage.totalTokens || 0,
+            streamingDurationMs: responseTimeMs - (ragDetails.timing?.totalMs || 0)
+          },
+          costs: {
+            ...(ragDetails.costs || {}),
+            openai: finalUsage.totalCost || 0,
+            total: totalCost
+          },
+          timing: {
+            ...(ragDetails.timing || {}),
+            openaiMs: responseTimeMs - (ragDetails.timing?.totalMs || 0),
+            totalMs: responseTimeMs
+          }
+        } : undefined;
 
         console.log('🔄 [API] Updating Supabase log with final data (with retry)...');
         try {
@@ -303,7 +373,8 @@ export async function POST(request: NextRequest) {
             openai_output_tokens: finalUsage.outputTokens || 0,
             openai_total_tokens: finalUsage.totalTokens || 0,
             openai_cost: finalUsage.totalCost || 0,
-            total_cost: totalCost
+            total_cost: totalCost,
+            rag_details: finalRagDetails  // Include updated RAG details
           }, 3);
 
           if (result.success) {
@@ -332,7 +403,7 @@ export async function POST(request: NextRequest) {
             openai_output_tokens: finalUsage?.outputTokens || 0,
             openai_total_tokens: finalUsage?.totalTokens || 0,
             openai_cost: finalUsage?.totalCost || 0,
-            total_cost: parseFloat(pineconeCost.toFixed(6)) + (finalUsage?.totalCost || 0)
+            total_cost: parseFloat(ragCost.toFixed(6)) + (finalUsage?.totalCost || 0)
           }, 3);
 
           if (result.success) {
@@ -373,7 +444,7 @@ export async function POST(request: NextRequest) {
 
     // Check of dit een content filter error is
     if (isContentFilterError(error)) {
-      logContentFilter(requestStartTime, message, conversationHistory);
+      logContentFilter(requestStartTime, message, conversationHistory, tenantId || undefined);
 
       return NextResponse.json(
         {
@@ -386,7 +457,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log de error met volledige context
-    logError(error, requestStartTime, message, conversationHistory, language);
+    logError(error, requestStartTime, message, conversationHistory, language, tenantId || undefined);
 
     // Categoriseer de error en geef user-friendly message
     const { category, source } = categorizeError(error);

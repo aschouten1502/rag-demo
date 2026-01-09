@@ -56,6 +56,23 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('nl');
+  const [tenantId, setTenantId] = useState<string>('');
+
+  // Get tenant ID from URL query parameter on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tenant = params.get('tenant');
+      if (tenant) {
+        setTenantId(tenant);
+        console.log('🏢 [Frontend] Tenant ID from URL:', tenant);
+      } else {
+        // Fallback to environment variable (set via middleware response header)
+        console.log('🏢 [Frontend] No tenant in URL, using default from env');
+      }
+    }
+  }, []);
+
   const [sessionId] = useState(() => {
     // Try to get existing session ID from localStorage
     if (typeof window !== 'undefined') {
@@ -121,7 +138,8 @@ export default function Home() {
         message: content,
         historyLength: messages.length,
         language: selectedLanguage,
-        sessionId: sessionId
+        sessionId: sessionId,
+        tenantId: tenantId || '(from middleware)'
       });
 
       const response = await fetch('/api/chat', {
@@ -131,7 +149,8 @@ export default function Home() {
           message: content,
           conversationHistory: messages,
           language: selectedLanguage,
-          sessionId: sessionId
+          sessionId: sessionId,
+          tenantId: tenantId  // Send tenant ID to API for document retrieval
         })
       });
 
@@ -311,10 +330,11 @@ export default function Home() {
                   content={message.content}
                   citations={message.citations}
                   logId={message.logId}
+                  selectedLanguage={selectedLanguage}
                 />
               ))}
               {/* Loading indicator tijdens wachten op antwoord */}
-              {isLoading && <LoadingIndicator />}
+              {isLoading && <LoadingIndicator selectedLanguage={selectedLanguage} />}
               {/* Invisible div voor auto-scroll */}
               <div ref={messagesEndRef} />
             </div>

@@ -14,7 +14,14 @@ export const translations = {
     ],
     inputPlaceholder: "Stel je vraag...",
     citationsLabel: "Bronnen",
-    pageLabel: "Pagina"
+    pageLabel: "Pagina",
+    feedbackQuestion: "Was dit nuttig?",
+    feedbackThanks: "Bedankt!",
+    feedbackModalTitle: "Wat kunnen we verbeteren?",
+    feedbackModalPlaceholder: "Vertel ons waarom dit antwoord niet nuttig was...",
+    feedbackModalCancel: "Annuleren",
+    feedbackModalSubmit: "Versturen",
+    funFactsPrefix: "Wist je dat"
   },
   en: {
     appTitle: "HR Assistant (DEMO)",
@@ -31,7 +38,14 @@ export const translations = {
     ],
     inputPlaceholder: "Ask your question...",
     citationsLabel: "Sources",
-    pageLabel: "Page"
+    pageLabel: "Page",
+    feedbackQuestion: "Was this helpful?",
+    feedbackThanks: "Thank you!",
+    feedbackModalTitle: "What can we improve?",
+    feedbackModalPlaceholder: "Tell us why this answer wasn't helpful...",
+    feedbackModalCancel: "Cancel",
+    feedbackModalSubmit: "Submit",
+    funFactsPrefix: "Did you know"
   },
   de: {
     appTitle: "HR Assistent (DEMO)",
@@ -48,7 +62,14 @@ export const translations = {
     ],
     inputPlaceholder: "Stellen Sie Ihre Frage...",
     citationsLabel: "Quellen",
-    pageLabel: "Seite"
+    pageLabel: "Seite",
+    feedbackQuestion: "War das hilfreich?",
+    feedbackThanks: "Danke!",
+    feedbackModalTitle: "Was können wir verbessern?",
+    feedbackModalPlaceholder: "Sagen Sie uns, warum diese Antwort nicht hilfreich war...",
+    feedbackModalCancel: "Abbrechen",
+    feedbackModalSubmit: "Absenden",
+    funFactsPrefix: "Wussten Sie, dass"
   },
   fr: {
     appTitle: "Assistant RH (DÉMO)",
@@ -65,7 +86,14 @@ export const translations = {
     ],
     inputPlaceholder: "Posez votre question...",
     citationsLabel: "Sources",
-    pageLabel: "Page"
+    pageLabel: "Page",
+    feedbackQuestion: "Cela vous a-t-il été utile?",
+    feedbackThanks: "Merci!",
+    feedbackModalTitle: "Que pouvons-nous améliorer?",
+    feedbackModalPlaceholder: "Dites-nous pourquoi cette réponse n'était pas utile...",
+    feedbackModalCancel: "Annuler",
+    feedbackModalSubmit: "Envoyer",
+    funFactsPrefix: "Saviez-vous que"
   },
   es: {
     appTitle: "Asistente de RRHH (DEMO)",
@@ -82,7 +110,14 @@ export const translations = {
     ],
     inputPlaceholder: "Haga su pregunta...",
     citationsLabel: "Fuentes",
-    pageLabel: "Página"
+    pageLabel: "Página",
+    feedbackQuestion: "¿Fue esto útil?",
+    feedbackThanks: "¡Gracias!",
+    feedbackModalTitle: "¿Qué podemos mejorar?",
+    feedbackModalPlaceholder: "Cuéntenos por qué esta respuesta no fue útil...",
+    feedbackModalCancel: "Cancelar",
+    feedbackModalSubmit: "Enviar",
+    funFactsPrefix: "¿Sabías que"
   },
   it: {
     appTitle: "Assistente HR (DEMO)",
@@ -99,7 +134,14 @@ export const translations = {
     ],
     inputPlaceholder: "Fai la tua domanda...",
     citationsLabel: "Fonti",
-    pageLabel: "Pagina"
+    pageLabel: "Pagina",
+    feedbackQuestion: "È stato utile?",
+    feedbackThanks: "Grazie!",
+    feedbackModalTitle: "Cosa possiamo migliorare?",
+    feedbackModalPlaceholder: "Dicci perché questa risposta non è stata utile...",
+    feedbackModalCancel: "Annulla",
+    feedbackModalSubmit: "Invia",
+    funFactsPrefix: "Lo sapevi che"
   },
   pl: {
     appTitle: "Asystent HR (DEMO)",
@@ -116,7 +158,14 @@ export const translations = {
     ],
     inputPlaceholder: "Zadaj pytanie...",
     citationsLabel: "Źródła",
-    pageLabel: "Strona"
+    pageLabel: "Strona",
+    feedbackQuestion: "Czy to było pomocne?",
+    feedbackThanks: "Dziękuję!",
+    feedbackModalTitle: "Co możemy poprawić?",
+    feedbackModalPlaceholder: "Powiedz nam, dlaczego ta odpowiedź nie była pomocna...",
+    feedbackModalCancel: "Anuluj",
+    feedbackModalSubmit: "Wyślij",
+    funFactsPrefix: "Czy wiesz, że"
   },
   tr: {
     appTitle: "İK Asistanı (DEMO)",
@@ -133,7 +182,14 @@ export const translations = {
     ],
     inputPlaceholder: "Sorunuzu sorun...",
     citationsLabel: "Kaynaklar",
-    pageLabel: "Sayfa"
+    pageLabel: "Sayfa",
+    feedbackQuestion: "Bu faydalı oldu mu?",
+    feedbackThanks: "Teşekkürler!",
+    feedbackModalTitle: "Neyi geliştirebiliriz?",
+    feedbackModalPlaceholder: "Bu yanıtın neden faydalı olmadığını bize söyleyin...",
+    feedbackModalCancel: "İptal",
+    feedbackModalSubmit: "Gönder",
+    funFactsPrefix: "Biliyor muydunuz"
   },
   ar: {
     appTitle: "مساعد الموارد البشرية (تجريبي)",
@@ -150,7 +206,14 @@ export const translations = {
     ],
     inputPlaceholder: "اطرح سؤالك...",
     citationsLabel: "المصادر",
-    pageLabel: "صفحة"
+    pageLabel: "صفحة",
+    feedbackQuestion: "هل كان هذا مفيداً؟",
+    feedbackThanks: "شكراً!",
+    feedbackModalTitle: "ما الذي يمكننا تحسينه؟",
+    feedbackModalPlaceholder: "أخبرنا لماذا لم تكن هذه الإجابة مفيدة...",
+    feedbackModalCancel: "إلغاء",
+    feedbackModalSubmit: "إرسال",
+    funFactsPrefix: "هل تعلم أن"
   },
   zh: {
     appTitle: "人力资源助手（演示版）",
@@ -167,7 +230,14 @@ export const translations = {
     ],
     inputPlaceholder: "提出您的问题...",
     citationsLabel: "来源",
-    pageLabel: "页"
+    pageLabel: "页",
+    feedbackQuestion: "这有帮助吗？",
+    feedbackThanks: "谢谢！",
+    feedbackModalTitle: "我们可以改进什么？",
+    feedbackModalPlaceholder: "告诉我们为什么这个回答没有帮助...",
+    feedbackModalCancel: "取消",
+    feedbackModalSubmit: "提交",
+    funFactsPrefix: "你知道吗"
   },
   pt: {
     appTitle: "Assistente de RH (DEMO)",
@@ -184,7 +254,14 @@ export const translations = {
     ],
     inputPlaceholder: "Faça sua pergunta...",
     citationsLabel: "Fontes",
-    pageLabel: "Página"
+    pageLabel: "Página",
+    feedbackQuestion: "Isso foi útil?",
+    feedbackThanks: "Obrigado!",
+    feedbackModalTitle: "O que podemos melhorar?",
+    feedbackModalPlaceholder: "Diga-nos por que esta resposta não foi útil...",
+    feedbackModalCancel: "Cancelar",
+    feedbackModalSubmit: "Enviar",
+    funFactsPrefix: "Você sabia que"
   },
   ro: {
     appTitle: "Asistent HR (DEMO)",
@@ -201,7 +278,14 @@ export const translations = {
     ],
     inputPlaceholder: "Pune întrebarea...",
     citationsLabel: "Surse",
-    pageLabel: "Pagină"
+    pageLabel: "Pagină",
+    feedbackQuestion: "A fost util?",
+    feedbackThanks: "Mulțumesc!",
+    feedbackModalTitle: "Ce putem îmbunătăți?",
+    feedbackModalPlaceholder: "Spune-ne de ce acest răspuns nu a fost util...",
+    feedbackModalCancel: "Anulare",
+    feedbackModalSubmit: "Trimite",
+    funFactsPrefix: "Știai că"
   }
 };
 

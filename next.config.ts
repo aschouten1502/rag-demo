@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import withPWA from "@ducanh2912/next-pwa";
 
+const isWindows = process.platform === 'win32';
+
 const nextConfig: NextConfig = {
   eslint: {
     // Warning: This allows production builds to complete even with ESLint errors
@@ -10,6 +12,15 @@ const nextConfig: NextConfig = {
     // Warning: This allows production builds to complete even with TypeScript errors
     // Only use for temporary fixes - should resolve errors properly in production
     ignoreBuildErrors: false,
+  },
+  // Webpack configuration for Windows cache stability
+  webpack: (config, { dev }) => {
+    if (dev && isWindows) {
+      // Disable filesystem cache on Windows to prevent EPERM errors
+      // This fixes the "operation not permitted, rename" cache corruption issue
+      config.cache = false;
+    }
+    return config;
   },
 };
 

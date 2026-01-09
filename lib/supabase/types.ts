@@ -50,6 +50,7 @@ export interface ChatLogRow {
   update_attempts: number | null
   updated_at: string | null
   tenant_id?: string | null  // Optional: for multi-tenant shared database
+  rag_details?: Json | null  // RAG pipeline details for comprehensive logging
 }
 
 export interface ChatLogInsert {
@@ -84,6 +85,7 @@ export interface ChatLogInsert {
   update_attempts?: number | null
   updated_at?: string | null
   tenant_id?: string | null  // Optional: for multi-tenant shared database
+  rag_details?: Json | null  // RAG pipeline details for comprehensive logging
 }
 
 export interface ChatLogUpdate {
@@ -118,6 +120,7 @@ export interface ChatLogUpdate {
   update_attempts?: number | null
   updated_at?: string | null
   tenant_id?: string | null  // Optional: for multi-tenant shared database
+  rag_details?: Json | null  // RAG pipeline details for comprehensive logging
 }
 
 export type Database = {

@@ -23,6 +23,7 @@ import { logChatRequest, logErrorEvent, logContentFilterEvent } from './supabase
  * Complete request summary voor analytics
  */
 export interface RequestSummary {
+  tenant_id: string;  // Required for multi-tenant
   session_id?: string;
   timestamp: string;
   question: string;
@@ -41,6 +42,7 @@ export interface RequestSummary {
   conversation_history_length: number;
   language: string;
   citations: Citation[];
+  rag_details?: Record<string, any>;  // RAG pipeline details for comprehensive logging
 }
 
 /**
@@ -74,11 +76,12 @@ export interface ErrorDetails {
 /**
  * Logt een succesvolle chat request naar console en Supabase
  *
- * @param summary - Complete request summary met alle data
+ * @param summary - Complete request summary met alle data (inclusief tenant_id)
  * @returns Promise met het log ID voor feedback tracking
  */
 export async function logSuccessfulRequest(summary: RequestSummary): Promise<string | null> {
   console.log('\n📊 [Logging] ========== REQUEST SUMMARY ==========');
+  console.log('🏢 [Logging] Tenant ID:', summary.tenant_id);
   console.log('🔑 [Logging] Session ID:', summary.session_id || 'NO_SESSION_ID');
   console.log('⏱️  [Logging] Timestamp:', summary.timestamp);
   console.log('❓ [Logging] Question:', summary.question);
@@ -93,7 +96,9 @@ export async function logSuccessfulRequest(summary: RequestSummary): Promise<str
 
   // Log naar Supabase (non-blocking - falen mag de chat niet breken)
   try {
-    const result = await logChatRequest(summary);
+    // Extract tenant_id and pass separately to logChatRequest
+    const { tenant_id, ...logData } = summary;
+    const result = await logChatRequest(tenant_id, logData);
     if (result.success && result.data && result.data[0]) {
       const logId = result.data[0].id;
       console.log('✅ [Logging] Log ID for feedback:', logId);
@@ -161,13 +166,15 @@ export function categorizeError(error: any): { category: ErrorCategory; source: 
  * @param message - De user vraag
  * @param conversationHistory - De conversatie geschiedenis
  * @param language - De geselecteerde taal
+ * @param tenantId - Tenant ID voor multi-tenant logging
  */
 export function logError(
   error: any,
   requestStartTime: number,
   message: string,
   conversationHistory: any[],
-  language: string
+  language: string,
+  tenantId?: string
 ): void {
   const requestEndTime = Date.now();
   const responseTimeMs = requestEndTime - requestStartTime;
@@ -226,17 +233,21 @@ export function logError(
     stack: error?.stack?.split('\n').slice(0, 3).join(' | ') || null
   };
 
-  // Log naar Supabase (non-blocking)
-  logErrorEvent({
-    timestamp: new Date(requestStartTime).toISOString(),
-    question: message || 'Unknown',
-    error_details: JSON.stringify(errorDetails),
-    response_time_seconds: parseFloat(responseTimeSeconds),
-    response_time_ms: responseTimeMs,
-    conversation_history_length: conversationHistory?.length || 0
-  }).catch(err => {
-    console.error('⚠️ [Logging] Failed to log error to Supabase (non-critical):', err.message || err);
-  });
+  // Log naar Supabase (non-blocking) - only if tenantId is provided
+  if (tenantId) {
+    logErrorEvent(tenantId, {
+      timestamp: new Date(requestStartTime).toISOString(),
+      question: message || 'Unknown',
+      error_details: JSON.stringify(errorDetails),
+      response_time_seconds: parseFloat(responseTimeSeconds),
+      response_time_ms: responseTimeMs,
+      conversation_history_length: conversationHistory?.length || 0
+    }).catch(err => {
+      console.error('⚠️ [Logging] Failed to log error to Supabase (non-critical):', err.message || err);
+    });
+  } else {
+    console.warn('⚠️ [Logging] Skipping Supabase error log - no tenant ID provided');
+  }
 }
 
 // ========================================
@@ -265,11 +276,13 @@ export function isContentFilterError(error: any): boolean {
  * @param requestStartTime - Wanneer de request begon
  * @param message - De geblokkeerde vraag
  * @param conversationHistory - De conversatie geschiedenis
+ * @param tenantId - Tenant ID voor multi-tenant logging
  */
 export function logContentFilter(
   requestStartTime: number,
   message: string,
-  conversationHistory: any[]
+  conversationHistory: any[],
+  tenantId?: string
 ): void {
   const requestEndTime = Date.now();
   const responseTimeMs = requestEndTime - requestStartTime;
@@ -297,17 +310,21 @@ export function logContentFilter(
   console.log('📊 [Logging] Summary:', JSON.stringify(filterEventSummary, null, 2));
   console.log('========================================\n');
 
-  // Log naar Supabase (non-blocking)
-  logContentFilterEvent({
-    timestamp: new Date(requestStartTime).toISOString(),
-    question: message,
-    answer: filterMessage,
-    response_time_seconds: parseFloat(responseTimeSeconds),
-    response_time_ms: responseTimeMs,
-    conversation_history_length: conversationHistory?.length || 0
-  }).catch(err => {
-    console.error('⚠️ [Logging] Failed to log content filter to Supabase (non-critical):', err.message || err);
-  });
+  // Log naar Supabase (non-blocking) - only if tenantId is provided
+  if (tenantId) {
+    logContentFilterEvent(tenantId, {
+      timestamp: new Date(requestStartTime).toISOString(),
+      question: message,
+      answer: filterMessage,
+      response_time_seconds: parseFloat(responseTimeSeconds),
+      response_time_ms: responseTimeMs,
+      conversation_history_length: conversationHistory?.length || 0
+    }).catch(err => {
+      console.error('⚠️ [Logging] Failed to log content filter to Supabase (non-critical):', err.message || err);
+    });
+  } else {
+    console.warn('⚠️ [Logging] Skipping Supabase content filter log - no tenant ID provided');
+  }
 }
 
 // ========================================

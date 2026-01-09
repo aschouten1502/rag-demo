@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { translations, type LanguageCode } from "../translations";
 import { BRANDING } from "@/lib/branding.config";
+import { useTenant } from "../providers/TenantProvider";
 
 const LANGUAGES = [
   { code: "nl", name: "Nederlands", flag: "🇳🇱" },
@@ -25,10 +26,15 @@ interface ChatHeaderProps {
 }
 
 export const ChatHeader = ({ selectedLanguage, onLanguageChange }: ChatHeaderProps) => {
+  const { tenant } = useTenant();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const currentLang = LANGUAGES.find((l) => l.code === selectedLanguage) || LANGUAGES[0];
-  const t = translations[selectedLanguage as LanguageCode] || translations.nl;
+
+  // Get translations: prefer tenant's ui_texts, fallback to static translations
+  const staticT = translations[selectedLanguage as LanguageCode] || translations.nl;
+  const tenantTexts = tenant?.ui_texts?.[selectedLanguage as LanguageCode] || tenant?.ui_texts?.nl;
+  const t = tenantTexts ? { ...staticT, ...tenantTexts } : staticT;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -44,14 +50,27 @@ export const ChatHeader = ({ selectedLanguage, onLanguageChange }: ChatHeaderPro
     }
   }, [isDropdownOpen]);
 
-  // Dynamic styles from branding config
+  // Use tenant colors if available, fallback to BRANDING
+  const primaryColor = tenant?.primary_color || BRANDING.colors.primary;
+  const primaryDark = tenant?.primary_dark
+    || (tenant?.primary_color ? adjustColorBrightness(tenant.primary_color, -20) : BRANDING.colors.primaryDark);
+
+  // Header gradient colors - use dedicated fields or fallback to primary colors
+  const headerGradientStart = tenant?.header_gradient_start || primaryColor;
+  const headerGradientEnd = tenant?.header_gradient_end || primaryDark;
+
+  // Dynamic styles from tenant config or branding fallback
   const headerStyle = {
-    background: `linear-gradient(to right, ${BRANDING.colors.primary}, ${BRANDING.colors.primaryDark})`
+    background: `linear-gradient(to right, ${headerGradientStart}, ${headerGradientEnd})`
   };
 
   const logoStyle = {
-    color: BRANDING.colors.primary
+    color: primaryColor
   };
+
+  // Get tenant name or fallback
+  const tenantName = tenant?.name || BRANDING.shortName;
+  const logoUrl = tenant?.logo_url || BRANDING.logo.main;
 
   return (
     <header className="shadow-2xl" style={headerStyle}>
@@ -59,16 +78,15 @@ export const ChatHeader = ({ selectedLanguage, onLanguageChange }: ChatHeaderPro
         <div className="flex items-center justify-between">
           {/* Logo + Title Section */}
           <div className="flex items-center gap-3">
-            {BRANDING.logo.main ? (
-              // Use logo image if configured
+            {logoUrl ? (
+              // Use logo image if configured (tenant or branding)
               <div className="bg-white rounded-xl p-2.5 shadow-lg">
                 <img
-                  src={BRANDING.logo.main}
-                  alt={BRANDING.shortName}
+                  src={logoUrl}
+                  alt={tenantName}
                   className="h-8 w-auto"
                   style={{
-                    width: BRANDING.logo.dimensions.width ? `${BRANDING.logo.dimensions.width}px` : 'auto',
-                    height: BRANDING.logo.dimensions.height ? `${BRANDING.logo.dimensions.height}px` : '32px'
+                    maxHeight: '32px'
                   }}
                 />
               </div>
@@ -76,7 +94,7 @@ export const ChatHeader = ({ selectedLanguage, onLanguageChange }: ChatHeaderPro
               // Use text logo if no image configured
               <div className="bg-white rounded-xl px-4 py-2.5 shadow-lg">
                 <h1 className="text-xl font-bold tracking-tight" style={logoStyle}>
-                  {BRANDING.shortName.toUpperCase()}
+                  {tenantName.toUpperCase()}
                 </h1>
               </div>
             )}
@@ -118,13 +136,13 @@ export const ChatHeader = ({ selectedLanguage, onLanguageChange }: ChatHeaderPro
                     className="w-full text-left px-4 py-3 transition-all flex items-center gap-3 text-sm text-gray-800"
                     style={{
                       backgroundColor: lang.code === selectedLanguage
-                        ? `${BRANDING.colors.primary}20`
+                        ? `${primaryColor}20`
                         : 'transparent',
                       fontWeight: lang.code === selectedLanguage ? 600 : 400
                     }}
                     onMouseEnter={(e) => {
                       if (lang.code !== selectedLanguage) {
-                        e.currentTarget.style.backgroundColor = `${BRANDING.colors.primary}10`;
+                        e.currentTarget.style.backgroundColor = `${primaryColor}10`;
                       }
                     }}
                     onMouseLeave={(e) => {
@@ -145,3 +163,20 @@ export const ChatHeader = ({ selectedLanguage, onLanguageChange }: ChatHeaderPro
     </header>
   );
 };
+
+// Helper function to adjust color brightness
+function adjustColorBrightness(hex: string, percent: number): string {
+  hex = hex.replace(/^#/, '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  const adjust = (value: number) => {
+    const adjusted = Math.round(value + (255 * percent) / 100);
+    return Math.max(0, Math.min(255, adjusted));
+  };
+
+  const toHex = (value: number) => value.toString(16).padStart(2, '0');
+
+  return `#${toHex(adjust(r))}${toHex(adjust(g))}${toHex(adjust(b))}`;
+}

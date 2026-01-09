@@ -2,21 +2,80 @@
  * PDF URL mapping for Supabase Storage (Multi-Tenant)
  *
  * This module generates public URLs for PDF documents stored in Supabase Storage.
- * Works with any tenant's storage bucket configured via STORAGE_BUCKET_NAME env var.
  *
  * MULTI-TENANT ARCHITECTURE:
- * - Each client has their own storage bucket: "{tenant-id}-hr-documents"
- * - Bucket name is configured via environment variable
- * - No hardcoded PDF lists - all PDFs in bucket are considered valid
+ * - Each tenant has their own storage bucket: "{tenant-id}-hr-documents"
+ * - Use getPdfUrlForTenant() for tenant-specific URLs (recommended)
+ * - Legacy functions use STORAGE_BUCKET_NAME env var for backwards compatibility
  *
- * LEGACY SUPPORT:
- * - Backwards compatible with legacy storage buckets
- * - Falls back to generic "hr-documents" if not configured
+ * USAGE:
+ * - New code: getPdfUrlForTenant(tenantId, storagePath)
+ * - Legacy code: getPdfUrl(filename) or getPdfUrlByPath(storagePath)
  */
 
 import { STORAGE_CONFIG } from './supabase/config';
 
 const SUPABASE_STORAGE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1', '') || '';
+
+/**
+ * Get the bucket name for a specific tenant
+ * Format: {tenantId}-hr-documents
+ *
+ * @param tenantId - The tenant identifier
+ * @returns The bucket name for this tenant
+ */
+export function getTenantBucketName(tenantId: string): string {
+  return `${tenantId}-hr-documents`;
+}
+
+/**
+ * Get the public URL for a PDF document in a tenant's bucket
+ * This is the RECOMMENDED method for multi-tenant deployments
+ *
+ * @param tenantId - The tenant identifier
+ * @param storagePath - The storage path within the bucket (e.g., "documents/Employee_Handbook.pdf")
+ * @returns The public URL to the PDF in Supabase Storage
+ *
+ * @example
+ * ```typescript
+ * const url = getPdfUrlForTenant("demo", "documents/Employee_Handbook.pdf");
+ * // Returns: "https://xxx.supabase.co/storage/v1/object/public/demo-hr-documents/documents/Employee_Handbook.pdf"
+ * ```
+ */
+export function getPdfUrlForTenant(tenantId: string, storagePath: string): string {
+  if (!SUPABASE_STORAGE_URL) {
+    console.warn('⚠️ [PDF URLs] NEXT_PUBLIC_SUPABASE_URL not configured - PDF links will not work');
+    return '#';
+  }
+
+  if (!tenantId) {
+    console.warn('⚠️ [PDF URLs] No tenant ID provided');
+    return '#';
+  }
+
+  if (!storagePath) {
+    console.warn('⚠️ [PDF URLs] No storage path provided');
+    return '#';
+  }
+
+  const bucketName = getTenantBucketName(tenantId);
+  // Encode each path segment separately to handle filenames with special characters
+  const encodedPath = storagePath.split('/').map(encodeURIComponent).join('/');
+  const encodedBucket = encodeURIComponent(bucketName);
+
+  return `${SUPABASE_STORAGE_URL}/storage/v1/object/public/${encodedBucket}/${encodedPath}`;
+}
+
+/**
+ * Get the public URL for a PDF by filename in a tenant's bucket
+ *
+ * @param tenantId - The tenant identifier
+ * @param filename - The PDF filename
+ * @returns The public URL to the PDF
+ */
+export function getPdfUrlByFilenameForTenant(tenantId: string, filename: string): string {
+  return getPdfUrlForTenant(tenantId, `documents/${filename}`);
+}
 
 /**
  * Get the storage bucket name from configuration
@@ -27,7 +86,7 @@ export function getBucketName(): string {
 }
 
 /**
- * Get the public URL for a PDF document
+ * Get the public URL for a PDF document by filename (legacy/fallback)
  *
  * @param filename - The PDF filename (e.g., "Employee_Handbook_2024.pdf")
  * @returns The public URL to the PDF in Supabase Storage
@@ -47,6 +106,36 @@ export function getPdfUrl(filename: string): string {
   const encodedFilename = encodeURIComponent(filename);
   const encodedBucket = encodeURIComponent(STORAGE_CONFIG.bucketName);
   return `${SUPABASE_STORAGE_URL}/storage/v1/object/public/${encodedBucket}/${encodedFilename}`;
+}
+
+/**
+ * Get the public URL for a PDF document by storage path
+ * This is the preferred method when file_path is available from the database
+ *
+ * @param storagePath - The full storage path (e.g., "demo/doc-id/filename.pdf")
+ * @returns The public URL to the PDF in Supabase Storage
+ *
+ * @example
+ * ```typescript
+ * const url = getPdfUrlByPath("demo/abc-123/Employee_Handbook.pdf");
+ * // Returns: "https://xxx.supabase.co/storage/v1/object/public/demo-hr-documents/demo/abc-123/Employee_Handbook.pdf"
+ * ```
+ */
+export function getPdfUrlByPath(storagePath: string): string {
+  if (!SUPABASE_STORAGE_URL) {
+    console.warn('⚠️ [PDF URLs] NEXT_PUBLIC_SUPABASE_URL not configured - PDF links will not work');
+    return '#';
+  }
+
+  if (!storagePath) {
+    console.warn('⚠️ [PDF URLs] No storage path provided');
+    return '#';
+  }
+
+  // Encode each path segment separately to handle filenames with special characters
+  const encodedPath = storagePath.split('/').map(encodeURIComponent).join('/');
+  const encodedBucket = encodeURIComponent(STORAGE_CONFIG.bucketName);
+  return `${SUPABASE_STORAGE_URL}/storage/v1/object/public/${encodedBucket}/${encodedPath}`;
 }
 
 /**

@@ -1,6 +1,6 @@
-# 🤖 HR Assistant AI
+# HR Assistant AI
 
-**Version 2.0.0** - Multi-tenant White-Label HR Chatbot
+**Version 2.2.0** - Multi-tenant White-Label HR Chatbot with Supabase RAG
 
 > Transform your HR documentation into an intelligent AI assistant that answers employee questions 24/7 in 12 languages.
 
@@ -11,338 +11,296 @@
 
 ---
 
-## 🎯 What is HR Assistant AI?
+## What is HR Assistant AI?
 
 An **enterprise-grade RAG (Retrieval-Augmented Generation)** chatbot that:
 
-- 📚 Learns from your HR documents (PDFs)
-- 🤖 Answers employee questions using AI (GPT-4o)
-- 🌍 Supports 12 languages automatically
-- 📱 Works as mobile app (PWA)
-- 📊 Tracks costs and analytics
-- 🎨 Fully white-labelable per client
+- Learns from your HR documents (PDFs) with **smart chunking**
+- Answers employee questions using AI (GPT-4o)
+- Supports **12 languages** with automatic query translation
+- Works as mobile app (PWA)
+- Tracks costs and analytics with **comprehensive logging**
+- Fully white-labelable per client with **Admin Dashboard**
 
 **Perfect for**: HR teams, employee onboarding, policy Q&A, benefits explanations, and reducing HR support tickets.
 
 ---
 
-## ✨ Key Features
+## Key Features (v2.2)
 
-### 🧠 Intelligent Answers
-- **RAG Technology**: Retrieves relevant context from your docs before answering
-- **Accurate Responses**: Only uses information from your documents (no hallucination)
-- **Citations**: Shows source documents and page numbers
-- **Multi-turn Conversations**: Remembers conversation history
+### Supabase RAG (NEW in v2.1)
+- **pgvector Search**: 99.6% cheaper than Pinecone
+- **Smart Chunking**: Fixed, smart, and semantic strategies
+- **Query Translation**: Non-English queries translated for better search
+- **Cohere Reranking**: Optional relevance improvement
+- **RAG Details Logging**: 200+ fields for debugging
 
-### 🌐 Multi-Language Support
-12 languages included:
-- 🇳🇱 Nederlands
-- 🇬🇧 English
-- 🇩🇪 Deutsch
-- 🇫🇷 Français
-- 🇪🇸 Español
-- 🇮🇹 Italiano
-- 🇵🇱 Polski
-- 🇹🇷 Türkçe
-- 🇸🇦 العربية
-- 🇨🇳 中文
-- 🇵🇹 Português
-- 🇷🇴 Română
+### Admin Dashboard (NEW in v2.0)
+- **Tenant Management**: Create, edit, delete tenants
+- **Branding Editor**: Live preview with color picker
+- **Cost Analytics**: Per-tenant cost breakdown
+- **Chat Logs Viewer**: Debug with RAG details
+- **Document Management**: Upload and manage PDFs
 
-### 📱 Modern User Experience
-- **Progressive Web App (PWA)**: Install on any device
-- **Offline Support**: Works without internet (cached)
-- **Mobile-First Design**: Optimized for phones and tablets
+### Multi-Tenant Architecture
+- **Middleware Detection**: Subdomain, query param, header, or env
+- **Isolated Data**: Each tenant has separate documents and logs
+- **Database-Driven Config**: Tenant settings stored in Supabase
+- **Client-Side Context**: TenantProvider for React components
+
+### 12-Language Support
+- Nederlands, English, Deutsch, Francais
+- Espanol, Italiano, Polski, Turkce
+- Arabic, Chinese, Portugues, Romana
+
+### Modern UX
+- **PWA**: Install on any device
 - **Streaming Responses**: Real-time answer generation
-- **Dark Mode Ready**: (Coming soon)
-
-### 📊 Analytics & Monitoring
-- **Cost Tracking**: Per-question cost breakdown
-- **Usage Analytics**: Questions, sessions, popular docs
-- **Performance Monitoring**: Response times, error rates
-- **Feedback Collection**: (Optional) User satisfaction tracking
-
-### 🎨 White-Label Ready
-- **Customizable Branding**: Colors, logo, company name
-- **Multi-Tenant Architecture**: Easy per-client deployment
-- **Environment-Based Config**: Change settings without code changes
+- **Citations**: Source documents and page numbers
+- **Conversation Memory**: Multi-turn conversations
 
 ---
 
-## 🚀 Quick Start (5 Minutes)
+## Quick Start (10 Minutes)
 
 ### Prerequisites
 
 - Node.js 18+ and npm
-- Pinecone account (for document storage)
-- OpenAI API key (for AI responses)
-- (Optional) Supabase account (for analytics)
+- Supabase account (free tier works)
+- OpenAI API key
+- (Optional) Cohere API key for reranking
 
-### 1. Clone Repository
+### 1. Clone & Install
 
 ```bash
 git clone https://github.com/your-org/hr-assistant-ai.git
 cd hr-assistant-ai
-```
-
-### 2. Install Dependencies
-
-```bash
 npm install
 ```
 
-### 3. Configure Environment
+### 2. Configure Environment
 
 ```bash
-# Copy example file
 cp .env.example .env.local
-
-# Edit .env.local with your values
-# See .env.example for detailed instructions
 ```
 
-Required variables:
+Edit `.env.local`:
 ```bash
-PINECONE_API_KEY=pcsk_xxxxx
-PINECONE_ASSISTANT_NAME=your-assistant-name
-OPENAI_API_KEY=sk-xxxxx
+# Required
+TENANT_ID=acme-corp
+TENANT_NAME=Acme Corporation
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+OPENAI_API_KEY=sk-...
+
+# Optional
+COHERE_API_KEY=...  # For reranking
+NEXT_PUBLIC_COMPANY_NAME=Acme Corporation
+NEXT_PUBLIC_PRIMARY_COLOR=#0066CC
 ```
 
-### 4. Upload Your HR Documents
+### 3. Setup Database
 
-1. Create Pinecone Assistant at https://www.pinecone.io
-2. Upload your HR PDFs
-3. Copy Assistant name to `.env.local`
+Run migrations in Supabase SQL Editor:
+- `lib/supabase/migrations/rag_schema.sql`
+- `docs/migrations/MULTI_TENANT_SETUP.sql`
 
-### 5. Run Development Server
+### 4. Run Development Server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and start asking questions!
+Open [http://localhost:3000](http://localhost:3000)
+
+### 5. Upload Documents
+
+Use Admin Dashboard at `/admin` or API:
+```bash
+curl -X POST http://localhost:3000/api/rag/upload \
+  -F "file=@document.pdf" \
+  -F "tenant_id=acme-corp"
+```
 
 ---
 
-## 📖 Full Documentation
-
-### Getting Started
-- **[QUICK_START.md](QUICK_START.md)** - 15-20 minute setup with CLIENT_CONFIG.md workflow ⭐
-- **[CLIENT_CONFIG.example.md](CLIENT_CONFIG.example.md)** - Client configuration template ⭐
-- **[CLAUDE.md](CLAUDE.md)** - Claude Code automation instructions ⭐
-- **[.env.example](.env.example)** - Environment variable reference
-
-### Extended Documentation
-- **[documentation/](documentation/)** - Organized documentation library
-  - [Setup & Deployment](documentation/setup/)
-  - [Branding & Customization](documentation/branding/)
-  - [Technical Documentation](documentation/technical/)
-  - [Scaling Guide](documentation/guides/SCALING_GUIDE.md)
-
----
-
-## 🏗️ Architecture
+## Architecture
 
 ```
 User Question
-    ↓
-Next.js API Route (app/api/chat/route.ts)
-    ↓
-Pinecone Assistant → Retrieve top 3 relevant snippets
-    ↓
-System Prompt Generation → Inject context + guardrails
-    ↓
-OpenAI GPT-4o → Generate streaming answer
-    ↓
-Response + Citations → Frontend
-    ↓
-Supabase Logging → Analytics (optional)
+    |
+middleware.ts --> Tenant Detection
+    |
+API Route (app/api/chat/route.ts)
+    |
+lib/rag/context.ts --> Supabase pgvector
+    |-- Query Translation (non-English)
+    |-- Embedding (text-embedding-3-small)
+    |-- Vector Search (cosine similarity)
+    |-- Cohere Reranking (optional)
+    |
+System Prompt (lib/prompts.ts)
+    |
+OpenAI GPT-4o --> Streaming response
+    |
+Supabase Logging (rag_details JSONB)
 ```
 
 ### Tech Stack
 
-- **Framework**: Next.js 15 (App Router)
-- **Language**: TypeScript 5
-- **Styling**: Tailwind CSS 4
-- **Vector DB**: Pinecone Assistant
-- **LLM**: OpenAI GPT-4o
-- **Database**: Supabase (PostgreSQL)
-- **PWA**: @ducanh2912/next-pwa
-- **Deployment**: Vercel (recommended)
+| Component | Technology |
+|-----------|------------|
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript 5 |
+| Styling | Tailwind CSS 4 |
+| Vector DB | Supabase pgvector |
+| Embeddings | OpenAI text-embedding-3-small |
+| Reranking | Cohere (optional) |
+| LLM | OpenAI GPT-4o |
+| Database | Supabase (PostgreSQL) |
+| PWA | @ducanh2912/next-pwa |
 
 ---
 
-## 💰 Cost Tracking
+## Cost Tracking
 
-The application tracks costs per query:
-- **Pinecone**: Context retrieval tokens
-- **OpenAI**: Input and output tokens
+### Per-Request Costs
 
-View detailed cost breakdowns in:
-- Developer sidebar (during chat)
-- Supabase analytics dashboard
-- [Analytics Documentation](documentation/technical/SUPABASE_ANALYTICS.md)
+| Component | Cost | Notes |
+|-----------|------|-------|
+| Embedding | $0.02/1M tokens | text-embedding-3-small |
+| Reranking | $1/1000 searches | Cohere (optional) |
+| OpenAI | $2.50 input, $10 output/1M | GPT-4o |
 
-**Cost Optimization Tips**:
-- Use `gpt-4o-mini` for lower costs (90% cheaper)
-- Reduce `topK` in `lib/pinecone.ts` (currently 3)
-- Limit conversation history (currently 10 messages)
-- Monitor usage per client via Supabase
+### Cost Savings vs Pinecone
+
+- **Pinecone**: $5/1M tokens + $0.05/hour
+- **Supabase pgvector**: $0.02/1M tokens
+- **Savings**: ~99.6%
 
 ---
 
-## 🎨 Multi-Tenant Deployment
+## Project Structure
 
-**New in v2.0**: Automated client setup with CLIENT_CONFIG.md workflow!
+```
+app/
+  api/
+    chat/           # Main chat endpoint
+    admin/          # Admin API routes
+    rag/            # Document upload/management
+    tenant/         # Tenant config API
+  admin/            # Admin dashboard pages
+  providers/        # TenantProvider context
+  components/       # UI components
 
-### Quick Setup (15-20 minutes)
+lib/
+  rag/              # RAG system (11 files)
+    context.ts      # Vector search
+    embeddings.ts   # OpenAI embeddings
+    chunking.ts     # Document chunking
+    processor.ts    # Upload pipeline
+    reranker.ts     # Cohere reranking
+    query-translator.ts  # Multi-language
+  admin/            # Admin services (9 files)
+  supabase/         # Database client
+  tenant-config.ts  # Tenant configuration
 
-1. **Copy configuration template**:
-   ```bash
-   cp CLIENT_CONFIG.example.md CLIENT_CONFIG.md
-   ```
+middleware.ts       # Tenant detection
+```
 
-2. **Fill in client details**:
-   - Tenant ID and company name
-   - Branding (colors, logo)
-   - API keys (Pinecone, OpenAI)
-   - Supabase settings (optional)
+---
 
-3. **Share with Claude Code**:
-   ```
-   "Configureer deze client op basis van CLIENT_CONFIG.md"
-   ```
+## Documentation
 
-4. **Claude Code automatically**:
-   - Generates `.env.local`
-   - Sets up Supabase (if configured)
-   - Validates configuration
-   - Reports manual steps needed
+### Setup & Deployment
+- **[CLAUDE.md](CLAUDE.md)** - Developer guide (Claude Code)
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment
+- **[docs/RAG_SYSTEM.md](docs/RAG_SYSTEM.md)** - RAG architecture
+- **[docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md)** - Admin dashboard
 
-See **[QUICK_START.md](QUICK_START.md)** for complete instructions.
+### Database
+- **[docs/SUPABASE.md](docs/SUPABASE.md)** - Database schema
+- **[docs/SUPABASE_ANALYTICS.md](docs/SUPABASE_ANALYTICS.md)** - Analytics queries
+- **[docs/migrations/](docs/migrations/)** - SQL migrations
+
+### Quick Setup
+- **[QUICK_START.md](QUICK_START.md)** - 15-20 min setup
+- **[CLIENT_CONFIG.example.md](CLIENT_CONFIG.example.md)** - Config template
+- **[.env.example](.env.example)** - Environment reference
+
+---
+
+## Admin Dashboard
+
+Access at `/admin`:
+
+| Route | Purpose |
+|-------|---------|
+| `/admin` | Dashboard with stats |
+| `/admin/tenants` | Manage tenants |
+| `/admin/tenants/new` | Create tenant |
+| `/admin/branding/[id]` | Edit branding |
+| `/admin/logs` | View chat logs |
+| `/admin/costs` | Cost analytics |
+
+---
+
+## Multi-Tenant Deployment
+
+### Automated Setup with Claude Code
+
+```bash
+cp CLIENT_CONFIG.example.md CLIENT_CONFIG.md
+# Fill in client details
+# Then: "Configureer deze client op basis van CLIENT_CONFIG.md"
+```
 
 ### Manual Setup
 
-See **[documentation/setup/DEPLOYMENT_GUIDE.md](documentation/setup/DEPLOYMENT_GUIDE.md)** for step-by-step manual deployment.
-
-**Total time: 15-20 minutes**
+1. Create tenant in Admin Dashboard
+2. Upload documents via `/admin/tenants/[id]`
+3. Configure branding
+4. Deploy to Vercel
 
 ---
 
-## 📱 PWA Installation
+## PWA Installation
 
-### iOS (iPhone/iPad)
-
+### iOS
 1. Open in Safari
-2. Tap Share button
-3. Tap "Add to Home Screen"
-4. Tap "Add"
+2. Tap Share > "Add to Home Screen"
 
 ### Android
-
 1. Open in Chrome
-2. Tap menu (⋮)
-3. Tap "Add to Home Screen"
-4. Tap "Add"
+2. Tap menu > "Add to Home Screen"
 
-### Desktop (Chrome/Edge)
-
-1. Click install icon (⊕) in address bar
-2. Click "Install"
+### Desktop
+1. Click install icon in address bar
 
 ---
 
-## 🔧 Development
-
-### Available Scripts
+## Development
 
 ```bash
-npm run dev          # Start dev server (http://localhost:3000)
+npm run dev          # Start dev server
 npm run build        # Build for production
-npm run start        # Start production server
 npm run lint         # Run ESLint
-npx tsc --noEmit     # TypeScript type checking
-```
-
-### Project Structure
-
-```
-├── app/
-│   ├── api/chat/          # Main API endpoint
-│   ├── components/        # React components
-│   ├── translations.ts    # 12-language translations
-│   └── page.tsx           # Main chat interface
-├── lib/
-│   ├── branding.config.ts # 🎨 Branding configuration
-│   ├── pinecone.ts        # Context retrieval
-│   ├── openai.ts          # LLM streaming
-│   ├── prompts.ts         # System prompts
-│   ├── logging.ts         # Error handling
-│   └── supabase/          # Database integration
-├── public/                # Static assets
-├── docs/                  # Documentation
-├── .env.example           # Environment template
-└── CUSTOMIZATION_GUIDE.md # Client setup guide
+npx tsc --noEmit     # Type check
 ```
 
 ---
 
-## 🛠️ Troubleshooting
+## Security
 
-### Bot returns generic answers
-- ✅ Check Pinecone Assistant name matches `.env.local`
-- ✅ Verify documents are indexed in Pinecone dashboard
-
-### Colors not updating
-- ✅ Hard refresh browser (Ctrl+Shift+R)
-- ✅ Rebuild with `npm run build`
-
-### Slow responses
-- ✅ Check Pinecone region matches Vercel region
-- ✅ Reduce `topK` in `lib/pinecone.ts`
-
-### Supabase logs not appearing
-- ✅ Check Service Role Key (not anon key!)
-- ✅ Verify migrations ran successfully
-- ✅ Bot works without Supabase (logs to console)
-
-See [CUSTOMIZATION_GUIDE.md](CUSTOMIZATION_GUIDE.md) for more troubleshooting.
+- Secrets in `.env.local` (not committed)
+- Service Role Key server-side only
+- Input validation prevents injection
+- Content filter via OpenAI
+- Tenant isolation at database level
 
 ---
 
-## 🔐 Security
-
-- ✅ All secrets in `.env.local` (not committed)
-- ✅ Service Role Key is server-side only
-- ✅ Input validation prevents prompt injection
-- ✅ Content filter protection (OpenAI)
-- ✅ No user data stored (unless Supabase enabled)
-- ✅ HTTPS required in production
-
-### Production Checklist
-- [ ] Change all API keys from dev/demo
-- [ ] Enable CORS restrictions
-- [ ] Set up rate limiting
-- [ ] Configure custom domain
-- [ ] Enable Vercel authentication (for internal tools)
-
----
-
-## 📊 Analytics Dashboards
-
-If Supabase is enabled, you get:
-
-- **Session Analytics**: Question count, response times, cost per session
-- **Document Usage**: Most cited documents and pages
-- **Performance Metrics**: P50/P90/P95 response times
-- **Cost Analytics**: Daily/monthly cost breakdowns
-- **Error Monitoring**: Failed requests, incomplete logs
-
-See [docs/SUPABASE_ANALYTICS.md](docs/SUPABASE_ANALYTICS.md) for SQL queries.
-
----
-
-## 🚀 Deployment
+## Deployment
 
 ### Vercel (Recommended)
 
@@ -351,74 +309,44 @@ See [docs/SUPABASE_ANALYTICS.md](docs/SUPABASE_ANALYTICS.md) for SQL queries.
 3. Add environment variables
 4. Deploy
 
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed instructions.
-
-### Other Platforms
-
-Works on any Node.js hosting:
-- AWS Amplify
-- Azure Static Web Apps
-- Railway
-- Render
-- Docker (Coming soon)
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for details.
 
 ---
 
-## 🤝 Support & Contributing
+## Changelog
 
-### For Levtor Team
-- Internal docs: [wiki link]
-- Slack: #hr-assistant-support
+### v2.2.0 (Current)
+- Query translation for multi-language search
+- Enhanced RAG details logging
+- Cohere reranking support
 
-### For Clients
-- Email: support@levtor.com
-- Response time: <24 hours
+### v2.1.0
+- Supabase pgvector RAG (replaced Pinecone)
+- 99.6% cost reduction
 
-### Contributing
-This is proprietary software. Internal contributions only.
+### v2.0.0
+- Admin Dashboard
+- Multi-tenant architecture
+- Middleware tenant detection
 
----
-
-## 📄 License
-
-**Proprietary** - © 2025 Levtor. All rights reserved.
-
-This software is provided to clients under a commercial license.
-Unauthorized copying, distribution, or modification is prohibited.
+### v1.x
+- Original GeoStick implementation
+- Pinecone-based RAG
 
 ---
 
-## 🎉 Success Stories
+## License
 
-> "Reduced HR support tickets by 60% in the first month!"
-> — HR Director, Tech Company (250 employees)
-
-> "Employees love having 24/7 access to HR policies in their own language."
-> — CHRO, International Manufacturing (1,200 employees)
-
-> "Setup took 15 minutes. Best investment we made this year."
-> — Startup Founder (50 employees)
+**Proprietary** - 2025 Levtor. All rights reserved.
 
 ---
 
-## 🗺️ Roadmap
-
-- [ ] **v2.1**: Dark mode support
-- [ ] **v2.2**: Voice input/output
-- [ ] **v2.3**: Advanced analytics dashboard
-- [ ] **v2.4**: Microsoft Teams integration
-- [ ] **v2.5**: Slack integration
-- [ ] **v3.0**: Multi-document chat (compare policies)
-
----
-
-## 📞 Contact
+## Contact
 
 **Levtor**
 - Website: https://levtor.com
-- Email: info@levtor.com
-- Support: support@levtor.com
+- Email: support@levtor.com
 
 ---
 
-**Built with ❤️ by [Levtor](https://levtor.com)** | **Powered by Next.js, OpenAI & Pinecone**
+**Built with Next.js, OpenAI & Supabase pgvector**

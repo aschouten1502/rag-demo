@@ -4,12 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**HR Assistant AI** (v2.0.0) is a **production-ready multi-tenant** Next.js 15 application that implements a multi-language HR assistant using RAG (Retrieval-Augmented Generation). The bot answers questions about HR policies, procedures, and employee benefits based on uploaded documentation.
+**HR Assistant AI** (v2.2.0) is a **production-ready multi-tenant** Next.js 15 application that implements a multi-language HR assistant using RAG (Retrieval-Augmented Generation). The bot answers questions about HR policies, procedures, and employee benefits based on uploaded documentation.
 
-**Multi-Tenant Architecture**: This is a **demo and template in one** - designed to be quickly deployed for multiple clients. Each client gets their own isolated instance with custom branding, documents, and data.
+### Key Features (v2.2)
+
+- **Supabase pgvector RAG**: Full vector search with embeddings (replaced Pinecone in v2.1)
+- **Admin Dashboard**: Complete tenant management, branding, costs, and analytics
+- **Multi-Tenant Architecture**: Isolated data per client with middleware-based detection
+- **12 Language Support**: With automatic query translation for non-English queries
+- **Smart Chunking**: Multiple strategies (fixed, smart, semantic) for document processing
+- **Cohere Reranking**: Optional reranking for improved search relevance
+- **Comprehensive Logging**: `rag_details` JSONB with 200+ fields for debugging
 
 **Original Client**: GeoStick (production instance running since v1.0)
-**Current Version**: White-label template for rapid deployment to new clients
+**Current Version**: v2.2.0 - White-label template with Supabase RAG
 
 ## Development Commands
 
@@ -23,26 +31,255 @@ npm run lint             # Run ESLint
 npx tsc --noEmit         # TypeScript type checking
 ```
 
-## Multi-Tenant Setup
+## Architecture Overview
 
-**IMPORTANT**: This project is fully multi-tenant. Before deploying for a new client, see:
-- **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Step-by-step deployment guide (30-45 min)
-- **[MULTI_TENANT_ARCHITECTURE.md](MULTI_TENANT_ARCHITECTURE.md)** - Technical architecture details
-- **[.env.example](.env.example)** - Complete environment variable reference
+### RAG Flow (v2.2 - Supabase pgvector)
+
+```
+User Question
+    ↓
+middleware.ts → Tenant Detection (subdomain/query/header/env)
+    ↓
+API Route (app/api/chat/route.ts)
+    ↓
+lib/rag/context.ts → Supabase pgvector search
+    ├── Query Translation (non-English → English)
+    ├── Embedding Generation (OpenAI text-embedding-3-small)
+    ├── Vector Search (pgvector cosine similarity)
+    └── Cohere Reranking (optional)
+    ↓
+Generate System Prompt (lib/prompts.ts) → Inject context + guardrails
+    ↓
+OpenAI GPT-4o → Streaming response
+    ↓
+Response + Citations → Frontend
+    ↓
+Log to Supabase (rag_details JSONB) → Analytics
+```
+
+### Directory Structure (Key Modules)
+
+```
+app/
+├── api/
+│   ├── chat/route.ts           # Main chat endpoint
+│   ├── admin/                  # Admin API routes
+│   │   ├── tenants/            # Tenant CRUD
+│   │   ├── branding/           # Branding management
+│   │   ├── logs/               # Chat log queries
+│   │   └── costs/              # Cost analytics
+│   ├── rag/                    # Document management
+│   │   ├── upload/             # PDF upload & processing
+│   │   └── documents/          # Document listing
+│   └── tenant/                 # Tenant config API
+├── admin/                      # Admin dashboard pages
+│   ├── page.tsx                # Dashboard overview
+│   ├── tenants/                # Tenant management
+│   ├── branding/               # Branding editor
+│   ├── logs/                   # Chat logs viewer
+│   └── costs/                  # Cost analytics
+├── providers/
+│   └── TenantProvider.tsx      # Client-side tenant context
+├── ClientLayout.tsx            # Suspense boundary for tenant
+└── components/                 # UI components
+
+lib/
+├── rag/                        # RAG System (11 files)
+│   ├── index.ts                # Main exports
+│   ├── types.ts                # Type definitions (550+ lines)
+│   ├── context.ts              # Context retrieval
+│   ├── embeddings.ts           # OpenAI embeddings
+│   ├── chunking.ts             # Document chunking
+│   ├── processor.ts            # Document upload pipeline
+│   ├── reranker.ts             # Cohere reranking
+│   ├── query-translator.ts     # Multi-language support
+│   ├── semantic-chunker.ts     # Advanced chunking
+│   ├── structure-detector.ts   # Document structure analysis
+│   └── metadata-generator.ts   # AI metadata generation
+├── admin/                      # Admin Services (9 files)
+│   ├── tenant-service.ts       # Tenant CRUD
+│   ├── branding-service.ts     # Branding management
+│   ├── storage-service.ts      # Supabase Storage
+│   ├── logs-service.ts         # Chat log queries
+│   ├── cost-service.ts         # Cost tracking
+│   └── ...
+├── supabase/
+│   ├── supabase-client.ts      # Database operations
+│   ├── config.ts               # Multi-tenant config
+│   └── types.ts                # Database types
+├── tenant-config.ts            # Tenant config with caching
+├── openai.ts                   # LLM streaming
+├── prompts.ts                  # System prompt generation
+├── logging.ts                  # Structured logging
+├── pdf-urls.ts                 # PDF URL generation
+└── branding.config.ts          # Branding defaults
+
+middleware.ts                   # Tenant detection middleware
+```
+
+---
+
+## RAG System (lib/rag/)
+
+The RAG system is built entirely on Supabase with pgvector for vector search. This replaced Pinecone in v2.1 for 99.6% cost savings.
+
+### Core Components
+
+**[lib/rag/context.ts](lib/rag/context.ts)** - Context Retrieval
+```typescript
+import { retrieveContext, checkRAGHealth } from '@/lib/rag';
+
+const result = await retrieveContext({
+  query: "What is the vacation policy?",
+  tenantId: "acme-corp",
+  topK: 5,
+  language: "nl"
+});
+// Returns: { contextText, citations, tokenUsage, cost, ragDetails }
+```
+
+**[lib/rag/embeddings.ts](lib/rag/embeddings.ts)** - Embedding Generation
+- Model: `text-embedding-3-small` (default) or `text-embedding-3-large`
+- Cost: $0.02 per 1M tokens (vs $5 for Pinecone)
+- Batch processing for documents
+
+**[lib/rag/chunking.ts](lib/rag/chunking.ts)** - Document Chunking
+- **Fixed chunking**: Simple character-based splits
+- **Smart chunking**: Paragraph and sentence aware
+- **Semantic chunking**: AI-driven topic boundaries
+- Configurable overlap and chunk sizes
+
+**[lib/rag/reranker.ts](lib/rag/reranker.ts)** - Cohere Reranking
+- Model: `rerank-multilingual-v3.0`
+- Optional: Enabled via `COHERE_API_KEY`
+- Improves relevance for top results
+
+**[lib/rag/query-translator.ts](lib/rag/query-translator.ts)** - Multi-Language
+- Detects non-English queries
+- Translates to English for vector search
+- Maintains original language in response
+
+### Document Processing Pipeline
+
+```typescript
+import { processDocument } from '@/lib/rag';
+
+const result = await processDocument({
+  file: pdfFile,
+  tenantId: "acme-corp",
+  chunkingMethod: "smart",
+  generateMetadata: true
+});
+// Creates: document record + chunks with embeddings
+```
+
+### RAG Types (lib/rag/types.ts)
+
+Key types exported:
+- `Document`, `DocumentChunk`, `SearchResult`
+- `ContextSnippet`, `Citation`, `ContextResponse`
+- `RAGDetails`, `RAGQueryDetails`, `RAGSearchDetails`
+- `RAGCostBreakdown`, `RAGTimingBreakdown`
+- `ProcessingResult`, `RAGHealthCheck`
+
+---
+
+## Admin Dashboard (app/admin/)
+
+Full-featured admin panel for tenant management.
+
+### Routes
+
+| Route | Purpose |
+|-------|---------|
+| `/admin` | Dashboard overview with stats |
+| `/admin/tenants` | List all tenants |
+| `/admin/tenants/new` | Create new tenant |
+| `/admin/tenants/[id]` | Edit tenant details |
+| `/admin/branding/[tenantId]` | Branding editor with live preview |
+| `/admin/logs` | Chat logs viewer |
+| `/admin/logs/[tenantId]` | Tenant-specific logs |
+| `/admin/costs` | Cost analytics dashboard |
+
+### Admin Services (lib/admin/)
+
+**[lib/admin/tenant-service.ts](lib/admin/tenant-service.ts)**
+```typescript
+import { getAllTenantsWithStats, createTenant, updateTenant } from '@/lib/admin/tenant-service';
+
+const tenants = await getAllTenantsWithStats();
+// Returns: tenants with document_count, chat_count, total_cost
+```
+
+**[lib/admin/branding-service.ts](lib/admin/branding-service.ts)**
+- Update tenant branding (colors, logo, texts)
+- Extract branding from URL (auto-detect)
+- Translate UI texts to multiple languages
+
+**[lib/admin/cost-service.ts](lib/admin/cost-service.ts)**
+- Per-tenant cost summaries
+- Daily/weekly/monthly breakdowns
+- Cost per component (embedding, reranking, OpenAI)
+
+**[lib/admin/logs-service.ts](lib/admin/logs-service.ts)**
+- Query chat logs with filters
+- View RAG details for debugging
+- Export capabilities
+
+---
+
+## Middleware & Tenant Detection
+
+**[middleware.ts](middleware.ts)** - Automatic tenant detection
+
+### Detection Priority (first match wins)
+
+1. **Subdomain**: `acme.localhost:3000` → `tenant_id = "acme"`
+2. **Query parameter**: `?tenant=acme`
+3. **Header**: `X-Tenant-ID: acme`
+4. **Environment variable**: `TENANT_ID` (fallback)
+
+### Usage in API Routes
+
+```typescript
+export async function POST(request: Request) {
+  const tenantId = request.headers.get('x-tenant-id');
+  // tenantId is automatically set by middleware
+}
+```
+
+### TenantProvider (Client-Side)
+
+**[app/providers/TenantProvider.tsx](app/providers/TenantProvider.tsx)**
+```typescript
+import { useTenant } from '@/app/providers/TenantProvider';
+
+function MyComponent() {
+  const { tenant, isLoading } = useTenant();
+  // Access tenant config: tenant.name, tenant.primary_color, etc.
+}
+```
+
+---
+
+## Multi-Tenant Setup
 
 ### Quick Start for New Client
 
 1. **Copy `.env.example` to `.env.local`**
+
 2. **Set tenant identification**:
    ```bash
-   TENANT_ID=acme-corp                    # Unique client identifier
+   TENANT_ID=acme-corp
    TENANT_NAME=Acme Corporation
    ```
 
-3. **Configure Pinecone** (client-specific assistant):
+3. **Configure Supabase** (REQUIRED for v2.2+):
    ```bash
-   PINECONE_API_KEY=pcsk_...
-   PINECONE_ASSISTANT_NAME=acme-corp-hr-assistant  # Per-client assistant
+   NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=...
+   SUPABASE_TABLE_NAME=chat_logs
+   STORAGE_BUCKET_NAME=acme-corp-hr-documents
    ```
 
 4. **Configure OpenAI**:
@@ -50,505 +287,336 @@ npx tsc --noEmit         # TypeScript type checking
    OPENAI_API_KEY=sk-...
    ```
 
-5. **Configure Supabase** (OPTIONAL - for logging/analytics):
+5. **Optional - Cohere Reranking**:
    ```bash
-   NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-   SUPABASE_SERVICE_ROLE_KEY=...
-   SUPABASE_TABLE_NAME=chat_logs              # Generic table for shared DB
-   STORAGE_BUCKET_NAME=acme-corp-hr-documents # Per-client bucket
+   COHERE_API_KEY=...
    ```
 
-6. **Configure Branding** (OPTIONAL - can use env vars or edit config file):
+6. **Configure Branding**:
    ```bash
    NEXT_PUBLIC_COMPANY_NAME=Acme Corporation
    NEXT_PUBLIC_PRIMARY_COLOR=#FF5733
    ```
 
-**Note**: The bot works without Supabase, but logs only go to console.
+### Database Setup
 
-### 🤖 AUTOMATED CLIENT SETUP (RECOMMENDED)
+Run migrations in Supabase SQL Editor:
 
-**NEW in v2.0**: Markdown-driven configuration with Claude Code automation!
+```sql
+-- 1. Core RAG schema (documents, chunks, embeddings)
+-- See: lib/supabase/migrations/rag_schema.sql
 
-Instead of manually editing `.env.local` and config files, use the `CLIENT_CONFIG.md` workflow:
+-- 2. Chat logs with rag_details
+-- See: docs/migrations/014_add_rag_details.sql
 
-#### Setup Flow
+-- 3. Document processing logs
+-- See: docs/migrations/015_document_processing_logs.sql
 
-1. **User fills in `CLIENT_CONFIG.md`**:
-   ```bash
-   cp CLIENT_CONFIG.example.md CLIENT_CONFIG.md
-   # Edit CLIENT_CONFIG.md with client details
-   ```
+-- 4. Tenants table
+-- See: docs/migrations/MULTI_TENANT_SETUP.sql
+```
 
-2. **User shares with Claude Code**:
-   ```
-   "Configureer deze client op basis van CLIENT_CONFIG.md"
-   ```
+### Automated Setup with Claude Code
 
-3. **Claude Code automatically**:
-   - Reads and validates configuration
-   - Generates `.env.local` with all environment variables
-   - Optionally updates `lib/branding.config.ts` with branding
-   - Launches `supabase-integration-manager` agent if Supabase configured
-   - Validates complete setup
-   - Reports manual steps still needed (Vercel deploy, Pinecone docs, bucket creation)
+Use `CLIENT_CONFIG.md` workflow:
+```bash
+cp CLIENT_CONFIG.example.md CLIENT_CONFIG.md
+# Edit with client details, then:
+# "Configureer deze client op basis van CLIENT_CONFIG.md"
+```
 
-#### When Claude Code Sees CLIENT_CONFIG.md
+---
 
-Execute this automation workflow:
+## Core Modules
 
-**1. Parse & Validate**
-- Read all configuration values from CLIENT_CONFIG.md
-- Validate required fields are filled in
-- Check formats: hex colors (#RRGGBB), URLs, lowercase tenant IDs
-- Report any missing or invalid values
+### API Routes
 
-**2. Generate .env.local**
+**[app/api/chat/route.ts](app/api/chat/route.ts)** - Main Chat Endpoint
+- Receives: `message`, `conversationHistory`, `language`, `sessionId`
+- Uses `lib/rag/context.ts` for retrieval (NOT Pinecone)
+- Streams OpenAI response
+- Logs with `rag_details` JSONB
+
+**[app/api/rag/upload/route.ts](app/api/rag/upload/route.ts)** - Document Upload
 ```typescript
-// Required variables
-TENANT_ID={from config}
-TENANT_NAME={from config}
-PINECONE_API_KEY={from config}
-PINECONE_ASSISTANT_NAME={from config}
-OPENAI_API_KEY={from config}
-
-// Branding (if provided)
-NEXT_PUBLIC_COMPANY_NAME={from config}
-NEXT_PUBLIC_PRIMARY_COLOR={from config}
-NEXT_PUBLIC_PRIMARY_DARK={from config}
-NEXT_PUBLIC_LOGO_URL={from config}
-// ... all other branding variables
-
-// Supabase (if configured)
-NEXT_PUBLIC_SUPABASE_URL={from config}
-SUPABASE_SERVICE_ROLE_KEY={from config}
-SUPABASE_TABLE_NAME={from config}
-STORAGE_BUCKET_NAME={from config}
+POST /api/rag/upload
+FormData: { file: PDF, tenant_id: string }
+// Processes PDF → chunks → embeddings → storage
 ```
 
-**3. Supabase Setup (if configured)**
-- If Supabase URL and service key provided in config:
-  - Launch `supabase-integration-manager` agent
-  - Agent should:
-    - Test connection to Supabase
-    - Run migration: `docs/migrations/MULTI_TENANT_SETUP.sql`
-    - Create table (generic `chat_logs` or client-specific)
-    - Verify table creation successful
-    - Report status
-
-**4. Validation**
-- Test that `.env.local` file is valid
-- Validate all environment variables are properly formatted
-- Check that Pinecone API key format is correct (starts with `pcsk_`)
-- Check that OpenAI API key format is correct (starts with `sk-`)
-- Validate hex color codes
-
-**5. Report Results**
-
-Provide clear summary:
-```
-✅ Configuration Complete!
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-AUTOMATED:
-✅ .env.local generated with {X} environment variables
-✅ Branding configured: {company_name}, color {primary_color}
-✅ Supabase database setup complete (table: {table_name})
-✅ Configuration validated
-
-MANUAL STEPS REQUIRED:
-⚠️ Upload HR documents to Pinecone Assistant: {assistant_name}
-   → Go to: https://pinecone.io
-   → Upload PDFs to assistant
-⚠️ Create Supabase Storage bucket: {bucket_name}
-   → Go to: Supabase Dashboard → Storage
-   → Create bucket (make it PUBLIC)
-   → Upload PDFs for citations
-⚠️ Deploy to Vercel:
-   → git push (auto-deploy) OR
-   → vercel deploy --prod
-⚠️ Replace logo file (if using local path):
-   → Add logo to /public/{logo_path}
-
-TESTING:
-1. Run: npm run dev
-2. Test chatbot locally
-3. Deploy when ready
-
-Next: {Provide specific next command or action}
+**[app/api/rag/documents/route.ts](app/api/rag/documents/route.ts)** - Document Management
+```typescript
+GET /api/rag/documents?tenant_id=acme-corp
+DELETE /api/rag/documents?tenant_id=acme-corp&id=doc_123
 ```
 
-**6. Error Handling**
-- If Supabase agent fails: Report error, suggest manual migration
-- If validation fails: List specific issues with suggested fixes
-- If config incomplete: List missing required fields
-- If API key invalid: Suggest checking key format and permissions
-
-#### Advantages
-
-- ✅ **No scripts to maintain**: Uses Claude Code's native agent system
-- ✅ **Self-documenting**: Config IS the documentation
-- ✅ **Intelligent**: Claude can reason about the config and spot errors
-- ✅ **Flexible**: User can ask for specific customizations
-- ✅ **Version-controllable**: Client configs can be stored in Git (example template)
-- ✅ **Fast**: 15-20 minute setup per client
-
-## Architecture
-
-### RAG Flow
-
-```
-User Question
-    ↓
-API Route (app/api/chat/route.ts)
-    ↓
-Pinecone Assistant → Retrieve top 3 relevant snippets from HR docs
-    ↓
-Generate System Prompt (lib/prompts.ts) → Inject context + guardrails
-    ↓
-OpenAI GPT-4o → Generate answer with streaming
-    ↓
-Response + Citations → Frontend
-    ↓
-Log to Supabase (with retry logic) → Analytics
+**[app/api/tenant/route.ts](app/api/tenant/route.ts)** - Tenant Config
+```typescript
+GET /api/tenant?tenant=acme-corp
+// Returns full tenant config with branding
 ```
 
-### Core Modules
+### Support Modules
 
-**[app/api/chat/route.ts](app/api/chat/route.ts)** - Main API endpoint
-- Receives: message, conversationHistory, language, sessionId
-- Orchestrates: Pinecone retrieval → Prompt generation → OpenAI streaming → Supabase logging
-- Error handling: Content filter detection, user-friendly messages, comprehensive logging
-
-**[lib/pinecone.ts](lib/pinecone.ts)** - Context retrieval
-- `retrieveContext()`: Fetches top 3 snippets (topK=3) from Pinecone Assistant
-- Returns: contextText, citations (file + page numbers), token usage, cost
-- Cost: $5 per 1M tokens (hourly rate $0.05/hour excluded from per-request calculations)
-
-**[lib/openai.ts](lib/openai.ts)** - LLM response generation
-- `generateStreamingAnswer()`: Streams GPT-4o responses to frontend
+**[lib/openai.ts](lib/openai.ts)** - LLM Response Generation
+- `generateStreamingAnswer()`: Streams GPT-4o responses
 - Model: `gpt-4o` with temperature 0.7
-- Cost tracking: Input tokens at $2.50/1M, output tokens at $10/1M
-- Returns ReadableStream with progress updates
+- Cost tracking: Input $2.50/1M, Output $10/1M tokens
 
-**[lib/prompts.ts](lib/prompts.ts)** - System prompt engineering
-- `generateSystemPrompt()`: Builds context-aware prompts per language
-- **Critical guardrails**:
-  - ONLY use information from retrieved context (no hallucination)
-  - Respond in user's selected language (12 languages supported)
-  - Reject non-HR queries and prompt injection attempts
-  - Use plain text formatting (no markdown bold/italics per system instructions)
-  - Defer to HR when context is insufficient
+**[lib/prompts.ts](lib/prompts.ts)** - System Prompt Engineering
+- `generateSystemPrompt()`: Context-aware prompts per language
+- Strict guardrails: No hallucination, language-specific responses
+- Rejects non-HR queries
 
-**[lib/logging.ts](lib/logging.ts)** - Structured logging & error handling
-- `logSuccessfulRequest()`: Comprehensive request summaries for analytics
-- `categorizeError()`: Error classification (PINECONE_ERROR, OPENAI_ERROR, etc.)
-- `isContentFilterError()`: Detects OpenAI content filter triggers
-- Console logs use emoji prefixes (🚀 start, ✅ success, ❌ error, 💰 costs)
+**[lib/logging.ts](lib/logging.ts)** - Structured Logging
+- `logSuccessfulRequest()`: Request summaries
+- `categorizeError()`: Error classification
+- Emoji prefixes: 🚀 start, ✅ success, ❌ error, 💰 costs
 
-**[lib/supabase/config.ts](lib/supabase/config.ts)** - Multi-tenant configuration (NEW)
-- Centralizes all multi-tenant settings
-- Reads `TENANT_ID`, `SUPABASE_TABLE_NAME`, `STORAGE_BUCKET_NAME` from environment
-- Validates configuration on startup
-- Provides `getConfigSummary()` for debugging
+**[lib/tenant-config.ts](lib/tenant-config.ts)** - Tenant Configuration
+- `getTenantConfig()`: Fetch with 5-min cache
+- `getTenantCssVariables()`: CSS injection
+- Fallback to environment variables
 
-**[lib/supabase/supabase-client.ts](lib/supabase/supabase-client.ts)** - Database logging (UPDATED for multi-tenant)
-- `logChatRequest()`: Initial log creation with session tracking + optional `tenant_id`
-- `updateChatRequestWithRetry()`: Exponential backoff retry (3 attempts) for streaming updates
-- Uses dynamic table name from `DATABASE_CONFIG.tableName`
-- Automatically adds `tenant_id` if multi-tenant mode enabled
-- Tracks: costs, tokens, response times, completion status, citations
-- Fixed: 32% incomplete logs issue with retry logic (see [MIGRATION_TO_V2.md](MIGRATION_TO_V2.md))
+**[lib/supabase/supabase-client.ts](lib/supabase/supabase-client.ts)** - Database Client
+- `logChatRequest()`: Create log with `rag_details`
+- `updateChatRequestWithRetry()`: Exponential backoff (3 attempts)
+- `validateTenant()`: Check tenant is active
 
-**[lib/supabase/types.ts](lib/supabase/types.ts)** - Generic database types (UPDATED)
-- Defines `ChatLogRow`, `ChatLogInsert`, `ChatLogUpdate` interfaces
-- Supports both legacy (`geostick_logs_data_qabothr`) and generic (`chat_logs`) table names
-- Includes optional `tenant_id` field for multi-tenant deployments
-- Backwards compatible with existing GeoStick table
+---
 
-**[lib/pdf-urls.ts](lib/pdf-urls.ts)** - PDF URL generation (UPDATED for multi-tenant)
-- `getPdfUrl()`: Generates public URLs for PDFs in Supabase Storage
-- `getBucketName()`: Returns configured bucket name from environment
-- `isPdfAvailable()`: Dynamic mode (any .pdf) or legacy mode (hardcoded list)
-- `validatePdfConfig()`: Configuration validation for debugging
-- Uses `STORAGE_CONFIG.bucketName` from environment (e.g., `acme-corp-hr-documents`)
-- Backwards compatible with legacy GeoStick bucket
+## Database Schema
 
-**[lib/branding.config.ts](lib/branding.config.ts)** - Branding configuration (UPDATED for multi-tenant)
-- Environment variable overrides for all branding values
-- Supports `NEXT_PUBLIC_COMPANY_NAME`, `NEXT_PUBLIC_PRIMARY_COLOR`, etc.
-- Falls back to config file values if env vars not set
-- Two deployment options:
-  1. Edit config file directly (simple, requires rebuild)
-  2. Use environment variables (recommended, no code changes)
+### Tables
 
-**[app/api/feedback/route.ts](app/api/feedback/route.ts)** - Feedback collection
-- `POST`: Saves user feedback (positive/negative) with optional comments
-- Updates: `feedback`, `feedback_comment`, `feedback_timestamp` in database
-- Schema ready, API implemented, UI not yet connected
+**`tenants`** - Tenant configuration
+```sql
+id, name, short_name, description, logo_url, primary_color,
+secondary_color, is_active, is_demo, fun_facts, ui_texts,
+created_at, updated_at
+```
 
-### Multi-Language Support
+**`documents`** - Document metadata
+```sql
+id, tenant_id, file_name, file_path, file_size, mime_type,
+status, chunk_count, created_at, updated_at
+```
+
+**`document_chunks`** - Chunks with embeddings
+```sql
+id, document_id, tenant_id, content, embedding (vector),
+chunk_index, metadata, created_at
+```
+
+**`chat_logs`** - Chat history with RAG details
+```sql
+id, tenant_id, question, answer, language, session_id,
+citations, rag_details (JSONB), total_cost, response_time_ms,
+is_complete, created_at, updated_at
+```
+
+**`document_processing_logs`** - Processing pipeline tracking
+```sql
+id, tenant_id, document_id, status, phase,
+parsing_cost, chunking_cost, embedding_cost, metadata_cost,
+error_message, started_at, completed_at
+```
+
+### RAG Details JSONB Structure
+
+```typescript
+{
+  query: {
+    original: string,
+    expanded: string[],
+    alternativeQueries: string[],
+    translatedFrom?: string
+  },
+  search: {
+    type: 'vector' | 'hybrid',
+    vectorTopK: number,
+    finalTopK: number,
+    queries: SearchQuery[],
+    rawResults: RawResult[],
+    matchedTerms: string[]
+  },
+  reranking: {
+    enabled: boolean,
+    model: string,
+    inputDocuments: number,
+    outputDocuments: number,
+    latencyMs: number,
+    results: RerankResult[]
+  },
+  openai: {
+    model: string,
+    temperature: number,
+    systemPromptTokens: number,
+    inputTokens: number,
+    outputTokens: number,
+    streamingDurationMs: number
+  },
+  costs: {
+    embedding: number,
+    reranking: number,
+    translation: number,
+    openai: number,
+    total: number
+  },
+  timing: {
+    embeddingMs: number,
+    searchMs: number,
+    rerankingMs: number,
+    openaiMs: number,
+    totalMs: number
+  }
+}
+```
+
+---
+
+## Multi-Language Support
 
 12 languages supported (Dutch is default):
 - 🇳🇱 Nederlands (nl), 🇬🇧 English (en), 🇩🇪 Deutsch (de), 🇫🇷 Français (fr)
 - 🇪🇸 Español (es), 🇮🇹 Italiano (it), 🇵🇱 Polski (pl), 🇹🇷 Türkçe (tr)
 - 🇸🇦 العربية (ar), 🇨🇳 中文 (zh), 🇵🇹 Português (pt), 🇷🇴 Română (ro)
 
-Translations stored in [app/translations.ts](app/translations.ts). System prompts and responses automatically adapt to selected language.
+### Query Translation (v2.2)
 
-### PDF Documents (Supabase Storage) - Multi-Tenant
+Non-English queries are automatically translated for better vector search:
+```typescript
+// User asks in Dutch: "Wat is het vakantiebeleid?"
+// → Translated for search: "What is the vacation policy?"
+// → Response in Dutch with Dutch context
+```
 
-**Per-Client Storage Buckets**:
-- Each client has their own Supabase Storage bucket: `{tenant-id}-hr-documents`
-- Examples: `acme-corp-hr-documents`, `techstart-hr-documents`
-- Configured via environment variable: `STORAGE_BUCKET_NAME`
+---
 
-**Legacy GeoStick Bucket** (backwards compatible):
-- Original bucket: `Geostick-HR-documenten`
-- Contains 10 GeoStick HR documents (see list below)
-- Still supported if `STORAGE_BUCKET_NAME` not set
+## Cost Tracking
 
-**GeoStick Documents** (reference/demo):
-- Betaaldata 2025.pdf
-- Flyer_ASF-RVU_Eerder-stoppen-met-werken_Werknemer.pdf
-- Geostick Extra info.pdf
-- Grafimedia-cao-2024-2025.pdf
-- Indienst - AFAS_handleiding.pdf
-- LEASE_A_BIKE___werknemer_brochure_2021.pdf
-- Personeelsgids_versie_HRM_2023_V17.pdf
-- PGB - Pensioen 1-2-3 - 2025.pdf
-- Proces eerlijk werven final versie 16-4-2025.pdf
-- WTV regeling.pdf
+### Per-Request Costs
 
-Document URLs are dynamically generated via `getPdfUrl()` in [lib/pdf-urls.ts](lib/pdf-urls.ts) using configured bucket name.
+| Component | Cost | Notes |
+|-----------|------|-------|
+| Embedding | $0.02/1M tokens | text-embedding-3-small |
+| Reranking | $1/1000 searches | Cohere (optional) |
+| Translation | $0.15/1M tokens | GPT-4o-mini |
+| OpenAI | $2.50 input, $10 output/1M | GPT-4o |
 
-## Database Schema (Supabase) - Multi-Tenant
+### Cost Savings vs Pinecone
 
-**Generic Table** (recommended): `chat_logs`
-**Legacy Table** (backwards compatible): `geostick_logs_data_qabothr`
+- **Pinecone**: $5/1M tokens + $0.05/hour
+- **Supabase pgvector**: $0.02/1M tokens
+- **Savings**: ~99.6%
 
-**Configuration**: Set via `SUPABASE_TABLE_NAME` environment variable
-
-Key columns:
-- **Multi-tenant**: `tenant_id` (optional, for shared database deployments)
-- **Request data**: `question`, `answer`, `language`, `session_id`, `conversation_history_length`
-- **Citations**: `citations` (JSON), `citations_count`, `snippets_used`
-- **Costs**: `pinecone_cost`, `openai_cost`, `total_cost`, token counts
-- **Performance**: `response_time_ms`, `response_time_seconds`
-- **Monitoring**: `is_complete`, `update_attempts`, `completion_error`, `updated_at`
-- **Feedback**: `feedback`, `feedback_comment`, `feedback_timestamp` (schema ready, UI not implemented)
-- **Flags**: `blocked` (content filter), `event_type`
-
-**Multi-Tenant Setup**:
-- **Generic migration**: [docs/migrations/MULTI_TENANT_SETUP.sql](docs/migrations/MULTI_TENANT_SETUP.sql)
-  - Creates `chat_logs` table with optional `tenant_id` column
-  - Includes indexes for tenant isolation
-  - Analytics views per tenant
-  - Utility functions (`get_tenant_stats()`, `cleanup_old_logs()`)
-
-- **Legacy migrations**: [lib/supabase/migrations/](lib/supabase/migrations/) (GeoStick-specific)
-  - `001_initial_schema.sql` - Original GeoStick table
-  - `002-012` - Monitoring, analytics views, BI functions
-  - Still compatible, see [MIGRATION_TO_V2.md](MIGRATION_TO_V2.md) for migration path
-
-**Analytics**:
-- Per-tenant cost tracking
-- Session quality metrics
-- Document citation analytics
-- Performance monitoring
-
-Query examples in [docs/SUPABASE_ANALYTICS.md](docs/SUPABASE_ANALYTICS.md).
-
-## Key Implementation Patterns
-
-### Streaming Responses
-- OpenAI responses stream via `generateStreamingAnswer()` in [lib/openai.ts](lib/openai.ts)
-- Frontend receives progressive chunks and updates UI in real-time
-- Final completion triggers Supabase update with retry logic
-
-### Citation Tracking
-- Each Pinecone snippet includes metadata: `file_name`, `page_label`
-- Citations grouped by document and deduplicated page numbers in frontend
-- Displayed below assistant responses with page references
-- Stored as JSON array in Supabase for analytics
-
-### Error Handling Strategy
-- Content filter errors return `userFriendly: true` flag → displayed as normal message
-- All errors categorized and logged with structured format
-- User-friendly messages via `getUserFriendlyErrorMessage()` in [lib/logging.ts](lib/logging.ts)
-- Stack traces logged to console for debugging
-
-### Cost Tracking
-- Pinecone: Context retrieval tracked ($5/1M tokens)
-- OpenAI: Input and output tokens tracked separately
-- Combined cost per request logged to Supabase
-- Frontend displays session-level aggregates in developer sidebar
-
-### Retry Logic & Error Handling (Critical)
-
-- Streaming updates use exponential backoff (3 attempts, 500ms → 1s → 2s delays)
-- Tracks `update_attempts` and `completion_error` in database
-- **Error catch block**: If streaming fails, the error handler updates the log with `[STREAMING ERROR]: <message>` and marks `is_complete: true`
-- This prevents logs from being stuck in `"[Streaming in progress...]"` state forever
-- Reduces incomplete logs from 32% to <1%
+---
 
 ## Common Development Tasks
 
-### Deploying for a New Client
-**See**: [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) - Complete step-by-step guide (30-45 min)
+### Upload Documents for a Tenant
 
-**Quick summary**:
-1. Create Pinecone Assistant with client's HR documents
-2. Create Supabase Storage bucket (optional)
-3. Configure environment variables (`.env.local` or Vercel)
-4. Deploy to Vercel (new project per client)
-5. Test and verify
+```bash
+# Via API
+curl -X POST http://localhost:3000/api/rag/upload \
+  -F "file=@document.pdf" \
+  -F "tenant_id=acme-corp"
 
-### Modifying System Prompt Behavior
+# Or use Admin Dashboard: /admin/tenants/[id]
+```
+
+### Modify System Prompt
+
 Edit `generateSystemPrompt()` in [lib/prompts.ts](lib/prompts.ts).
-- **Note**: Prompts are now generic (no GeoStick-specific references)
-- **Caution**: Strict guardrails prevent hallucination—modify carefully and test thoroughly
+- Prompts are generic (no client-specific references)
+- Test thoroughly after changes
 
-### Changing Pinecone Context Retrieval
-- Adjust `topK` in [lib/pinecone.ts](lib/pinecone.ts:94) (default: 3)
-- Lower topK reduces costs but may reduce answer quality
+### Change Embedding Model
 
-### Switching OpenAI Model
-Edit model name in [lib/openai.ts](lib/openai.ts:133). Options:
-- `gpt-4o` (current, best quality)
-- `gpt-4o-mini` (90% cheaper, good quality)
+Edit in [lib/rag/embeddings.ts](lib/rag/embeddings.ts):
+```typescript
+export const DEFAULT_EMBEDDING_MODEL = 'text-embedding-3-small';
+// or 'text-embedding-3-large' for higher accuracy
+```
 
-### Customizing Branding for New Client
-**Option 1**: Environment variables (recommended)
+### Enable/Disable Reranking
+
+Set environment variable:
 ```bash
-NEXT_PUBLIC_COMPANY_NAME=Acme Corporation
-NEXT_PUBLIC_PRIMARY_COLOR=#FF5733
+COHERE_API_KEY=...  # Set to enable
+# Remove to disable
 ```
 
-**Option 2**: Edit [lib/branding.config.ts](lib/branding.config.ts) directly
+### Add a New Language
 
-### Configuring Fun Facts (Loading Screen)
-"Wist je dat..." facts shown while the bot is thinking. Configured per client.
+1. Add to `languageNames` in [lib/prompts.ts](lib/prompts.ts)
+2. Add translations in [app/translations.ts](app/translations.ts)
+3. Add to `LANGUAGES` in [app/components/ChatHeader.tsx](app/components/ChatHeader.tsx)
 
-**Option 1**: Via `CLIENT_CONFIG.md` (recommended)
-```yaml
-fun_facts:
-  - wij al 25 jaar bestaan?
-  - ons hoofdkantoor in Rotterdam staat?
-```
+### Debug RAG Issues
 
-**Option 2**: Environment variable
-```bash
-NEXT_PUBLIC_FUN_FACTS='["wij al 25 jaar bestaan?","ons hoofdkantoor in Rotterdam staat?"]'
-NEXT_PUBLIC_FUN_FACTS_PREFIX=Wist je dat
-NEXT_PUBLIC_FUN_FACTS_ENABLED=true
-```
+1. Check chat logs with `rag_details`:
+   ```sql
+   SELECT rag_details FROM chat_logs WHERE id = 'xxx';
+   ```
+2. View timing breakdown: `rag_details->timing`
+3. Check search results: `rag_details->search->rawResults`
+4. Verify reranking: `rag_details->reranking->results`
 
-**Option 3**: Edit defaults in [lib/branding.config.ts](lib/branding.config.ts)
-
-Facts rotate every 4 seconds with fade animation. Disable with `NEXT_PUBLIC_FUN_FACTS_ENABLED=false`.
-
-### Adding a New Language
-1. Add language name to `languageNames` in [lib/prompts.ts](lib/prompts.ts)
-2. Add translations to `translations` object in [app/translations.ts](app/translations.ts)
-3. Add language option to `LANGUAGES` array in [app/components/ChatHeader.tsx](app/components/ChatHeader.tsx)
-
-### Running Database Migrations
-**For new clients**: Use [docs/migrations/MULTI_TENANT_SETUP.sql](docs/migrations/MULTI_TENANT_SETUP.sql)
-
-Apply via Supabase dashboard SQL editor:
-1. Go to SQL Editor
-2. Copy migration contents
-3. Run migration
-4. Verify table created: `SELECT * FROM chat_logs LIMIT 1;`
-
-### Debugging Logs
-Console logs use structured emoji prefixes:
-- `🚀` = Request start
-- `✅` = Success
-- `❌` = Error
-- `💰` = Cost summary
-- `🔍` = Debug details
-- `⏱️` = Timing
-
-Prefixes `[API]`, `[Pinecone]`, `[OpenAI]`, `[Logging]` indicate source module.
+---
 
 ## PWA (Progressive Web App)
 
-This app is installable on mobile/desktop as a standalone app:
+Installable on mobile/desktop as standalone app:
 - Configured via [next.config.ts](next.config.ts) with `@ducanh2912/next-pwa`
 - Manifest: [public/manifest.json](public/manifest.json)
-- Service worker caching strategies:
-  - **Google Fonts**: CacheFirst (1 year, max 4 entries)
-  - **Images**: CacheFirst (30 days, max 64 entries)
-  - **API (/api/chat)**: NetworkFirst (5 min cache, 10s timeout)
-  - **Static resources (JS/CSS)**: StaleWhileRevalidate (24 hours, max 60 entries)
-- Offline fallback: `/offline.html`
+- Service worker caching strategies defined
 - PWA disabled in development for faster builds
-- See [README.md](README.md) for installation instructions per platform
+
+---
 
 ## Tech Stack
 
 - **Framework**: Next.js 15.5.6 (App Router)
 - **Language**: TypeScript 5
 - **Styling**: Tailwind CSS 4
-- **Vector DB**: Pinecone Assistant API
+- **Vector DB**: Supabase pgvector (PostgreSQL)
+- **Embeddings**: OpenAI text-embedding-3-small
+- **Reranking**: Cohere (optional)
 - **LLM**: OpenAI GPT-4o
 - **Database**: Supabase (PostgreSQL)
 - **PWA**: @ducanh2912/next-pwa
-- **Deployment**: Vercel (recommended, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md))
+- **Deployment**: Vercel (recommended)
 
-## Important Notes
+### Deprecated
 
-### Security
+- **Pinecone**: Replaced by Supabase pgvector in v2.1. Legacy code in `lib/pinecone.ts` kept for reference.
+
+---
+
+## Security
+
 - Never commit `.env.local` (in `.gitignore`)
-- `SUPABASE_SERVICE_ROLE_KEY` is server-side only (never exposed to client)
+- `SUPABASE_SERVICE_ROLE_KEY` is server-side only
 - Input validation prevents prompt injection
 - Content filter protection via OpenAI moderation
+- Tenant isolation enforced at database level
 
-### Production Considerations (Multi-Tenant)
-- **Per-client setup**:
-  - Create unique Pinecone Assistant per client
-  - Upload client-specific HR documents
-  - Configure unique `TENANT_ID` and storage bucket
-- **Environment variables**:
-  - Verify all variables set in Vercel/deployment platform
-  - Never share Pinecone assistant names between clients
-  - Use separate storage buckets per client
-- **Monitoring**:
-  - Monitor Supabase logs for incomplete requests (should be <1%)
-  - Track costs per tenant using `tenant_id` column
-  - Check cost analytics regularly (see [docs/SUPABASE_ANALYTICS.md](docs/SUPABASE_ANALYTICS.md))
-- **Testing**:
-  - Test with actual client HR documents before handoff
-  - Verify citations link to correct PDFs
-  - Confirm branding appears correctly
-
-### Type Safety
-- TypeScript strict mode enabled
-- All Supabase types defined in [lib/supabase/types.ts](lib/supabase/types.ts)
-- No `any` types except in legacy conversation history handling
-
-### Build Configuration
-- ESLint errors ignored during builds (`ignoreDuringBuilds: true`)
-- TypeScript errors block builds (`ignoreBuildErrors: false`)
-- PWA disabled in development mode for faster iteration
-- Service worker only generated in production builds
-- Config in [next.config.ts](next.config.ts)
+---
 
 ## Documentation
 
-### Multi-Tenant Deployment (NEW - v2.0)
-- **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Step-by-step guide for new clients (30-45 min)
-- **[MULTI_TENANT_ARCHITECTURE.md](MULTI_TENANT_ARCHITECTURE.md)** - Technical architecture details
-- **[.env.example](.env.example)** - Complete environment variable reference
-- **[docs/migrations/MULTI_TENANT_SETUP.sql](docs/migrations/MULTI_TENANT_SETUP.sql)** - Generic database schema
-- **[MIGRATION_TO_V2.md](MIGRATION_TO_V2.md)** - Migrating from GeoStick to multi-tenant
-
-### General Documentation
-- **[README.md](README.md)** - Project overview, setup, features
-- **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)** - Detailed code structure and flow
-- **[docs/README.md](docs/README.md)** - Complete setup guide
-- **[docs/SUPABASE.md](docs/SUPABASE.md)** - Database schema and setup
-- **[docs/SUPABASE_ANALYTICS.md](docs/SUPABASE_ANALYTICS.md)** - Analytics queries and insights
+### Setup & Deployment
 - **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment guide
+- **[docs/RAG_SYSTEM.md](docs/RAG_SYSTEM.md)** - RAG architecture details
+- **[docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md)** - Admin dashboard guide
+- **[.env.example](.env.example)** - Environment variable reference
+
+### Database
+- **[docs/SUPABASE.md](docs/SUPABASE.md)** - Database schema
+- **[docs/SUPABASE_ANALYTICS.md](docs/SUPABASE_ANALYTICS.md)** - Analytics queries
+- **[docs/migrations/](docs/migrations/)** - SQL migrations
+
+### Reference
+- **[README.md](README.md)** - Project overview
+- **[documentation/](documentation/)** - Archived docs (v1.x)

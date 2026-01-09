@@ -1,0 +1,63 @@
+/**
+ * ========================================
+ * TENANT API ROUTE
+ * ========================================
+ *
+ * GET /api/tenant
+ * Returns tenant configuration (branding, colors, etc.)
+ *
+ * The tenant ID is automatically detected by the middleware from:
+ * 1. Subdomain: acme.localhost:3000
+ * 2. Query param: ?tenant=acme
+ * 3. Header: X-Tenant-ID
+ * 4. Environment variable: TENANT_ID
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { getTenantConfig, getTenantCssVariables } from '@/lib/tenant-config';
+
+export async function GET(request: NextRequest) {
+  // Get tenant ID from middleware-injected header
+  const tenantId = request.headers.get('x-tenant-id')
+    || request.nextUrl.searchParams.get('tenant')
+    || process.env.TENANT_ID;
+
+  if (!tenantId) {
+    return NextResponse.json(
+      {
+        error: 'No tenant ID provided',
+        message: 'Provide tenant via subdomain, ?tenant=xxx query param, or X-Tenant-ID header'
+      },
+      { status: 400 }
+    );
+  }
+
+  // Fetch tenant config from database
+  const result = await getTenantConfig(tenantId);
+
+  if (!result.success || !result.config) {
+    return NextResponse.json(
+      {
+        error: result.error || 'Tenant not found',
+        tenantId
+      },
+      { status: 404 }
+    );
+  }
+
+  // Build response with CSS variables included
+  const response = {
+    tenant: result.config,
+    cssVariables: getTenantCssVariables(result.config),
+    fromCache: result.fromCache
+  };
+
+  return NextResponse.json(response, {
+    headers: {
+      // No caching - always fetch fresh tenant config
+      // This ensures changes in admin panel are immediately visible
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+    }
+  });
+}

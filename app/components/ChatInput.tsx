@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import { translations, type LanguageCode } from "../translations";
 import { BRANDING } from "@/lib/branding.config";
+import { useTenant } from "../providers/TenantProvider";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -11,9 +12,19 @@ interface ChatInputProps {
 }
 
 export const ChatInput = ({ onSendMessage, disabled, selectedLanguage }: ChatInputProps) => {
+  const { tenant } = useTenant();
   const [input, setInput] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  const t = translations[selectedLanguage as LanguageCode] || translations.nl;
+
+  // Get translations: prefer tenant's ui_texts, fallback to static translations
+  const staticT = translations[selectedLanguage as LanguageCode] || translations.nl;
+  const tenantTexts = tenant?.ui_texts?.[selectedLanguage as LanguageCode] || tenant?.ui_texts?.nl;
+  const t = tenantTexts ? { ...staticT, ...tenantTexts } : staticT;
+
+  // Use tenant colors if available, fallback to BRANDING
+  const primaryColor = tenant?.primary_color || BRANDING.colors.primary;
+  const primaryDark = tenant?.primary_dark
+    || (tenant?.primary_color ? adjustColorBrightness(tenant.primary_color, -20) : BRANDING.colors.primaryDark);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -23,17 +34,23 @@ export const ChatInput = ({ onSendMessage, disabled, selectedLanguage }: ChatInp
     }
   };
 
-  // Dynamic styles from branding
+  // Dynamic styles from tenant or branding
+  // Use input_border_color if set, otherwise fallback to primary colors
+  const borderColor = tenant?.input_border_color
+    || (isFocused ? primaryDark : primaryColor);
+
   const inputContainerStyle = {
-    borderColor: isFocused ? BRANDING.colors.primaryDark : BRANDING.colors.primary,
+    borderColor: borderColor,
   };
+
+  // Use send_button_color if set, otherwise fallback to primary color
+  const sendButtonColor = tenant?.send_button_color || primaryColor;
+  const sendButtonHoverColor = tenant?.send_button_color
+    ? adjustColorBrightness(tenant.send_button_color, -15)
+    : primaryDark;
 
   const buttonStyle = {
-    backgroundColor: BRANDING.colors.primary,
-  };
-
-  const buttonHoverStyle = {
-    backgroundColor: BRANDING.colors.primaryDark,
+    backgroundColor: sendButtonColor,
   };
 
   return (
@@ -66,11 +83,11 @@ export const ChatInput = ({ onSendMessage, disabled, selectedLanguage }: ChatInp
             style={buttonStyle}
             onMouseEnter={(e) => {
               if (!disabled && input.trim()) {
-                e.currentTarget.style.backgroundColor = BRANDING.colors.primaryDark;
+                e.currentTarget.style.backgroundColor = sendButtonHoverColor;
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = BRANDING.colors.primary;
+              e.currentTarget.style.backgroundColor = sendButtonColor;
             }}
           >
             <svg className="w-5 h-5 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,3 +99,20 @@ export const ChatInput = ({ onSendMessage, disabled, selectedLanguage }: ChatInp
     </form>
   );
 };
+
+// Helper function to adjust color brightness
+function adjustColorBrightness(hex: string, percent: number): string {
+  hex = hex.replace(/^#/, '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  const adjust = (value: number) => {
+    const adjusted = Math.round(value + (255 * percent) / 100);
+    return Math.max(0, Math.min(255, adjusted));
+  };
+
+  const toHex = (value: number) => value.toString(16).padStart(2, '0');
+
+  return `#${toHex(adjust(r))}${toHex(adjust(g))}${toHex(adjust(b))}`;
+}

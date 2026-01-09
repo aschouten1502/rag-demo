@@ -2,23 +2,45 @@
 
 import { translations, type LanguageCode } from "../translations";
 import { BRANDING } from "@/lib/branding.config";
+import { useTenant } from "../providers/TenantProvider";
 
 interface WelcomeScreenProps {
   selectedLanguage: string;
 }
 
 export const WelcomeScreen = ({ selectedLanguage }: WelcomeScreenProps) => {
-  const t = translations[selectedLanguage as LanguageCode] || translations.nl;
+  const { tenant } = useTenant();
 
-  // Dynamic gradient style from branding
+  // Get translations: prefer tenant's ui_texts, fallback to static translations
+  const staticT = translations[selectedLanguage as LanguageCode] || translations.nl;
+  const tenantTexts = tenant?.ui_texts?.[selectedLanguage as LanguageCode] || tenant?.ui_texts?.nl;
+
+  // Merge tenant texts with static translations (tenant takes priority)
+  const t = tenantTexts ? {
+    ...staticT,
+    ...tenantTexts,
+  } : staticT;
+
+  // Use tenant colors if available, fallback to BRANDING
+  const primaryColor = tenant?.primary_color || BRANDING.colors.primary;
+  const primaryDark = tenant?.primary_dark
+    || (tenant?.primary_color ? adjustColorBrightness(tenant.primary_color, -20) : BRANDING.colors.primaryDark);
+
+  // Language hint color (glass box) - separate from primary color
+  const languageHintColor = tenant?.language_hint_color || primaryColor;
+
+  // Dynamic gradient style from tenant config or branding
   const gradientStyle = {
-    background: `linear-gradient(to bottom right, ${BRANDING.colors.primary}, ${BRANDING.colors.primaryDark})`
+    background: `linear-gradient(to bottom right, ${primaryColor}, ${primaryDark})`
   };
+
+  // Check if "Powered by" should be shown
+  const showPoweredBy = tenant?.show_powered_by ?? BRANDING.features.showPoweredBy;
 
   return (
     <div className="relative flex flex-col items-center justify-center h-full px-4 animate-fade-in z-10">
       <div className="relative mb-6">
-        {/* Gradient Circle - Dynamic color */}
+        {/* Gradient Circle - Dynamic color from tenant */}
         <div
           className="w-24 h-24 sm:w-32 sm:h-32 rounded-full flex items-center justify-center shadow-2xl"
           style={gradientStyle}
@@ -36,9 +58,17 @@ export const WelcomeScreen = ({ selectedLanguage }: WelcomeScreenProps) => {
         {t.welcomeSubtitle}
       </p>
 
-      {/* Language Hint */}
-      <div className="mt-4 px-4 py-2 bg-blue-50 border border-blue-200 rounded-xl max-w-md">
-        <p className="text-xs sm:text-sm text-blue-700 text-center">
+      {/* Language Hint - use language_hint_color with glass effect */}
+      <div
+        className="mt-4 px-4 py-2 rounded-xl max-w-md"
+        style={{
+          backgroundColor: `${languageHintColor}10`,
+          borderWidth: '1px',
+          borderStyle: 'solid',
+          borderColor: `${languageHintColor}30`
+        }}
+      >
+        <p className="text-xs sm:text-sm text-center" style={{ color: languageHintColor }}>
           {t.languageHint}
         </p>
       </div>
@@ -54,8 +84,8 @@ export const WelcomeScreen = ({ selectedLanguage }: WelcomeScreenProps) => {
         ))}
       </div>
 
-      {/* Powered by + Version - Conditional based on feature flag */}
-      {BRANDING.features.showPoweredBy && (
+      {/* Powered by + Version - Conditional based on tenant setting or feature flag */}
+      {showPoweredBy && (
         <div className="mt-8 mb-4 flex flex-col items-center gap-1">
           <p className="text-xs text-gray-400 flex items-center gap-1.5">
             <span>Powered by</span>
@@ -69,3 +99,20 @@ export const WelcomeScreen = ({ selectedLanguage }: WelcomeScreenProps) => {
     </div>
   );
 };
+
+// Helper function to adjust color brightness
+function adjustColorBrightness(hex: string, percent: number): string {
+  hex = hex.replace(/^#/, '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  const adjust = (value: number) => {
+    const adjusted = Math.round(value + (255 * percent) / 100);
+    return Math.max(0, Math.min(255, adjusted));
+  };
+
+  const toHex = (value: number) => value.toString(16).padStart(2, '0');
+
+  return `#${toHex(adjust(r))}${toHex(adjust(g))}${toHex(adjust(b))}`;
+}

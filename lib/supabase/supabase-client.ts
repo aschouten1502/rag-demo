@@ -1,8 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
-import { TENANT_CONFIG, DATABASE_CONFIG, getConfigSummary } from './config';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { DATABASE_CONFIG, getConfigSummary } from './config';
 
-// Initialize Supabase client
-// This is a server-side only client for logging (no authentication)
+// ========================================
+// SUPABASE CLIENT INITIALIZATION
+// ========================================
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
@@ -12,7 +14,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 // Create Supabase client with service role key for backend operations
 // Service role key bypasses RLS (Row Level Security) - safe for server-side logging
-export const supabase = supabaseUrl && supabaseServiceKey
+export const supabase: SupabaseClient | null = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
 
@@ -21,46 +23,119 @@ if (process.env.NODE_ENV === 'development' && supabase) {
   console.log('🔧 [Supabase] Multi-tenant configuration:', getConfigSummary());
 }
 
+// ========================================
+// TENANT VALIDATION
+// ========================================
+
+/**
+ * Validates that a tenant exists and is active
+ * @param tenantId - The tenant ID to validate
+ * @returns Object with validation result and tenant data if found
+ */
+export async function validateTenant(tenantId: string): Promise<{
+  valid: boolean;
+  tenant?: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+    primary_color: string | null;
+    secondary_color: string | null;
+    welcome_message: string | null;
+    contact_email: string | null;
+    is_active: boolean;
+  };
+  error?: string;
+}> {
+  if (!supabase) {
+    return { valid: false, error: 'Supabase not configured' };
+  }
+
+  if (!tenantId) {
+    return { valid: false, error: 'No tenant ID provided' };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('*')
+      .eq('id', tenantId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return { valid: false, error: `Tenant '${tenantId}' not found` };
+      }
+      return { valid: false, error: error.message };
+    }
+
+    if (!data.is_active) {
+      return { valid: false, error: `Tenant '${tenantId}' is not active` };
+    }
+
+    return { valid: true, tenant: data };
+  } catch (err: any) {
+    return { valid: false, error: err.message || 'Unknown error validating tenant' };
+  }
+}
+
+// ========================================
+// CHAT LOGGING FUNCTIONS
+// ========================================
+
 /**
  * Log a chat request to Supabase
  * This function safely handles logging failures without breaking the chat functionality
+ *
+ * @param tenantId - Required tenant ID for multi-tenant isolation
+ * @param data - Chat request data to log
  */
-export async function logChatRequest(data: {
-  session_id?: string;
-  timestamp: string;
-  question: string;
-  answer: string;
-  language?: string;
-  response_time_seconds: number;
-  response_time_ms: number;
-  pinecone_tokens: number;
-  pinecone_cost: number;
-  openai_input_tokens: number;
-  openai_output_tokens: number;
-  openai_total_tokens: number;
-  openai_cost: number;
-  total_cost: number;
-  snippets_used: number;
-  citations_count: number;
-  citations?: any[];
-  conversation_history_length: number;
-  blocked?: boolean;
-  event_type?: string;
-  error_details?: string;
-}) {
+export async function logChatRequest(
+  tenantId: string,
+  data: {
+    session_id?: string;
+    timestamp: string;
+    question: string;
+    answer: string;
+    language?: string;
+    response_time_seconds: number;
+    response_time_ms: number;
+    pinecone_tokens: number;
+    pinecone_cost: number;
+    openai_input_tokens: number;
+    openai_output_tokens: number;
+    openai_total_tokens: number;
+    openai_cost: number;
+    total_cost: number;
+    snippets_used: number;
+    citations_count: number;
+    citations?: any[];
+    conversation_history_length: number;
+    blocked?: boolean;
+    event_type?: string;
+    error_details?: string;
+    rag_details?: Record<string, any>;  // RAG pipeline details for comprehensive logging
+  }
+) {
   // Skip if Supabase is not configured
   if (!supabase) {
     console.log('⏩ [Supabase] Logging skipped - Supabase not configured');
     return { success: false, error: 'Supabase not configured' };
   }
 
+  // Validate tenant_id is provided
+  if (!tenantId) {
+    console.error('❌ [Supabase] Cannot log without tenant_id');
+    return { success: false, error: 'tenant_id is required' };
+  }
+
   try {
     console.log(`💾 [Supabase] Logging request to table: ${DATABASE_CONFIG.tableName}`);
+    console.log(`🏢 [Supabase] Tenant: ${tenantId}`);
 
-    // Build insert payload with optional tenant_id
-    const insertPayload: any = {
+    // Build insert payload - tenant_id is now required
+    const insertPayload = {
+      tenant_id: tenantId,
       session_id: data.session_id || null,
-      timestamp: data.timestamp,
       question: data.question,
       answer: data.answer,
       language: data.language || 'nl',
@@ -79,14 +154,9 @@ export async function logChatRequest(data: {
       conversation_history_length: data.conversation_history_length,
       blocked: data.blocked || false,
       event_type: data.event_type || 'chat_request',
-      error_details: data.error_details || null,
-      is_complete: data.answer !== '[Streaming in progress...]', // Mark placeholder logs as incomplete
+      is_complete: data.answer !== '[Streaming in progress...]',
+      rag_details: data.rag_details || null,  // RAG pipeline details
     };
-
-    // Add tenant_id if multi-tenant mode is enabled
-    if (DATABASE_CONFIG.enableTenantId && TENANT_CONFIG.tenantId) {
-      insertPayload.tenant_id = TENANT_CONFIG.tenantId;
-    }
 
     const { data: insertedData, error } = await supabase
       .from(DATABASE_CONFIG.tableName)
@@ -101,7 +171,6 @@ export async function logChatRequest(data: {
     console.log('✅ [Supabase] Request logged successfully');
     return { success: true, data: insertedData };
   } catch (error: any) {
-    // Catch and log any errors, but don't break the chat functionality
     console.error('❌ [Supabase] Unexpected error while logging:', error);
     return { success: false, error: error.message };
   }
@@ -122,6 +191,7 @@ export async function updateChatRequest(
     openai_total_tokens: number;
     openai_cost: number;
     total_cost: number;
+    rag_details?: Record<string, any>;  // RAG pipeline details (can be updated with OpenAI timing)
   },
   incrementAttempts: boolean = false
 ) {
@@ -144,6 +214,7 @@ export async function updateChatRequest(
       openai_cost: data.openai_cost,
       total_cost: data.total_cost,
       is_complete: true, // Mark as complete when successfully updated
+      ...(data.rag_details && { rag_details: data.rag_details }),  // Include rag_details if provided
     };
 
     const { data: updatedData, error } = await supabase
@@ -208,6 +279,7 @@ export async function updateChatRequestWithRetry(
     openai_total_tokens: number;
     openai_cost: number;
     total_cost: number;
+    rag_details?: Record<string, any>;  // RAG pipeline details (can be updated with OpenAI timing)
   },
   maxRetries: number = 3
 ): Promise<{ success: boolean; error?: string; attempts?: number }> {
@@ -255,16 +327,21 @@ export async function updateChatRequestWithRetry(
 
 /**
  * Log a content filter event to Supabase
+ * @param tenantId - Required tenant ID
+ * @param data - Content filter event data
  */
-export async function logContentFilterEvent(data: {
-  timestamp: string;
-  question: string;
-  answer: string;
-  response_time_seconds: number;
-  response_time_ms: number;
-  conversation_history_length: number;
-}) {
-  return logChatRequest({
+export async function logContentFilterEvent(
+  tenantId: string,
+  data: {
+    timestamp: string;
+    question: string;
+    answer: string;
+    response_time_seconds: number;
+    response_time_ms: number;
+    conversation_history_length: number;
+  }
+) {
+  return logChatRequest(tenantId, {
     ...data,
     language: 'nl',
     pinecone_tokens: 0,
@@ -284,16 +361,21 @@ export async function logContentFilterEvent(data: {
 
 /**
  * Log an error event to Supabase
+ * @param tenantId - Required tenant ID
+ * @param data - Error event data
  */
-export async function logErrorEvent(data: {
-  timestamp: string;
-  question: string;
-  error_details: string;
-  response_time_seconds: number;
-  response_time_ms: number;
-  conversation_history_length: number;
-}) {
-  return logChatRequest({
+export async function logErrorEvent(
+  tenantId: string,
+  data: {
+    timestamp: string;
+    question: string;
+    error_details: string;
+    response_time_seconds: number;
+    response_time_ms: number;
+    conversation_history_length: number;
+  }
+) {
+  return logChatRequest(tenantId, {
     ...data,
     answer: 'Error occurred',
     language: 'nl',
